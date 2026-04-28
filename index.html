@@ -179,7 +179,93 @@
   }
   footer a:hover { color: var(--accent); }
 
-  /* ---- Tap-to-begin (replaces sleeve until first gesture) ------------ */
+  /* ---- Welcome overlay (первый визит) -------------------------- */
+  .welcome {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--anchor);
+    z-index: 100;
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 600ms var(--ease), visibility 600ms var(--ease);
+    padding: 40px;
+  }
+  .welcome.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .welcome-inner {
+    display: grid;
+    place-items: center;
+    gap: 28px;
+    text-align: center;
+  }
+  .welcome-eyebrow {
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    color: var(--very-muted);
+    text-transform: uppercase;
+  }
+  .welcome-title {
+    font-family: "DM Serif Display", Georgia, serif;
+    font-size: clamp(28px, 4.5vw, 42px);
+    line-height: 1.15;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    max-width: 540px;
+  }
+  .welcome-sub {
+    font-family: "DM Sans", sans-serif;
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 420px;
+    line-height: 1.5;
+  }
+  .welcome-play {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    background: var(--sleeve);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform 220ms var(--ease-quick), background-color 220ms var(--ease-quick), border-color 220ms var(--ease-quick);
+    /* мягкая пульсация — сигнал живости, но без навязчивости */
+    animation: welcomePulse 2.6s var(--ease) infinite;
+  }
+  .welcome-play:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    transform: scale(1.04);
+  }
+  .welcome-play:hover svg { fill: var(--anchor); }
+  .welcome-play:active { transform: scale(0.96); }
+  .welcome-play svg {
+    width: 28px; height: 28px;
+    fill: var(--ink);
+    margin-left: 4px; /* оптическое центрирование треугольника */
+    transition: fill 220ms var(--ease-quick);
+  }
+  @keyframes welcomePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(122, 132, 114, 0.0); }
+    50% { box-shadow: 0 0 0 14px rgba(122, 132, 114, 0.08); }
+  }
+  .welcome-foot {
+    font-family: "DM Sans", sans-serif;
+    font-size: 12px;
+    color: var(--very-muted);
+    letter-spacing: 0.02em;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .welcome-play { animation: none; }
+  }
+
+  /* ---- Tap-hint (фаллбэк, если overlay не показывается) -------- */
   .tap-hint {
     font-size: 13px;
     color: var(--muted);
@@ -237,6 +323,18 @@
 
       <div class="tap-hint hidden" id="tap-hint">tap anywhere to begin</div>
     </main>
+
+    <div class="welcome" id="welcome" role="dialog" aria-label="Start ambient audio">
+      <div class="welcome-inner">
+        <div class="welcome-eyebrow">HODL FM</div>
+        <h1 class="welcome-title">Ambient music that follows bitcoin.</h1>
+        <p class="welcome-sub">Five textures for five market moods. Plays in the background while you do something else. No alerts, no charts.</p>
+        <button class="welcome-play" id="welcome-play" aria-label="Start audio">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17l15-8.5z"/></svg>
+        </button>
+        <div class="welcome-foot">tap to start · sound on</div>
+      </div>
+    </div>
 
     <footer>
       <span>made by <a href="https://siberia.fund" target="_blank" rel="noopener">Siberia Ventures</a></span>
@@ -444,7 +542,9 @@ const dom = {
   mute: $("mute"),
   cta: $("cta"),
   tapHint: $("tap-hint"),
-  status: $("status")
+  status: $("status"),
+  welcome: $("welcome"),
+  welcomePlay: $("welcome-play")
 };
 const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA"; // TODO: real ref after legal check
 dom.cta.href = CTA_URL;
@@ -550,6 +650,7 @@ async function begin() {
   if (started) return;
   started = true;
   dom.tapHint.classList.add("hidden");
+  dom.welcome.classList.add("hidden");
   // отписываемся от всех gesture-листенеров, чтобы без утечек
   gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
   try {
@@ -561,6 +662,7 @@ async function begin() {
     console.warn("audio start failed", e);
     started = false;
     dom.tapHint.classList.remove("hidden");
+    dom.welcome.classList.remove("hidden");
   }
 }
 
@@ -574,6 +676,12 @@ gestureEvents.forEach(ev => {
   document.addEventListener(ev, gestureHandler, { passive: true, capture: true });
 });
 
+// Отдельный явный хэндлер на play-кнопку — для iOS Safari и a11y
+dom.welcomePlay.addEventListener("click", (e) => {
+  e.stopPropagation();
+  begin();
+});
+
 // Попытка немедленного старта для вернувшихся (Media Engagement Index).
 // Если браузер разрешит — audio заиграет без жеста. Если нет — останемся в suspended,
 // ловим варнинг в console (это ожидаемо), первый же жест из gestureHandler его разбудит.
@@ -581,6 +689,8 @@ async function tryAutoStart() {
   let returning = false;
   try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
   if (!returning) return;
+  // Вернувшемуся пользователю оверлей не нужен — скрываем сразу
+  dom.welcome.classList.add("hidden");
   if (started) return;
   try {
     await audio.ensureCtx();
@@ -614,7 +724,16 @@ dom.trackName.textContent = stillState.track;
 document.documentElement.style.setProperty("--bg", stillState.bg);
 document.documentElement.style.setProperty("--accent", stillState.accent);
 lastState = stillState;
-dom.tapHint.classList.remove("hidden");
+// На первом визите показываем весь overlay; на повторных — маленький tap-hint
+{
+  let returning = false;
+  try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
+  if (returning) {
+    dom.welcome.classList.add("hidden");
+    dom.tapHint.classList.remove("hidden");
+  }
+  // иначе welcome уже виден по дефолту, tapHint остаётся hidden
+}
 tick();
 setInterval(tick, 60_000);
 tryAutoStart();
