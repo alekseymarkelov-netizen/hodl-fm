@@ -515,7 +515,7 @@ const STATES = [
     track: "Cold Lavender, No. 1",
     bg: "#D6CFDC", accent: "#3E3548", sleeve: "#E5DFE9",
     loop: "audio/falling.ogg",
-    sample: { gain: 1.30, filterHz: 1800, rate: 0.96 },  // чуть медленнее и глухее
+    sample: { gain: 0.85, filterHz: 1800, rate: 0.96 },  // чуть медленнее и глухее
     // fallback synth recipe — slow, low, sparse
     synth: { baseHz: 110, intervals: [0, 3, 7, 10], rateMs: 5200, pulseLen: 3.6, lfoHz: 0.08, filterHz: 480, gain: 0.18 }
   },
@@ -525,7 +525,7 @@ const STATES = [
     track: "Pale Clay Drift",
     bg: "#E8DAD0", accent: "#7A4A3A", sleeve: "#F0E5DC",
     loop: "audio/cooling.ogg",
-    sample: { gain: 1.25, filterHz: 2400, rate: 0.98 },
+    sample: { gain: 0.90, filterHz: 2400, rate: 0.98 },
     synth: { baseHz: 130, intervals: [0, 3, 7], rateMs: 4400, pulseLen: 3.0, lfoHz: 0.12, filterHz: 700, gain: 0.18 }
   },
   {
@@ -534,7 +534,7 @@ const STATES = [
     track: "Fog Study, No. 3",
     bg: "#EDE8E1", accent: "#6B6460", sleeve: "#F5F2EE",
     loop: "audio/still.ogg",
-    sample: { gain: 1.20, filterHz: 3000, rate: 1.00 },
+    sample: { gain: 0.85, filterHz: 3000, rate: 1.00 },  // STILL — самый тихий фон
     synth: { baseHz: 146.83, intervals: [0, 5, 7], rateMs: 4000, pulseLen: 2.6, lfoHz: 0.18, filterHz: 900, gain: 0.16 }
   },
   {
@@ -543,7 +543,7 @@ const STATES = [
     track: "Faded Moss",
     bg: "#D8E5D2", accent: "#4A7050", sleeve: "#E6EFE0",
     loop: "audio/rising.ogg",
-    sample: { gain: 1.30, filterHz: 4000, rate: 1.00 },
+    sample: { gain: 0.95, filterHz: 4000, rate: 1.00 },
     synth: { baseHz: 164.81, intervals: [0, 4, 7], rateMs: 3400, pulseLen: 2.4, lfoHz: 0.24, filterHz: 1200, gain: 0.18 }
   },
   {
@@ -552,7 +552,7 @@ const STATES = [
     track: "Sage Bloom",
     bg: "#BDD8B6", accent: "#2E5C35", sleeve: "#D2E4CB",
     loop: "audio/surge.ogg",
-    sample: { gain: 1.40, filterHz: 5500, rate: 1.02 },  // чуть ярче и быстрее
+    sample: { gain: 1.00, filterHz: 5500, rate: 1.02 },  // SURGE — верхняя яркость
     synth: { baseHz: 196.0, intervals: [0, 4, 7, 11], rateMs: 2800, pulseLen: 2.2, lfoHz: 0.32, filterHz: 1600, gain: 0.20 }
   }
 ];
@@ -687,7 +687,7 @@ class AmbientEngine {
     this.outGain = null;
     this.voice = null;
     this.muted = false;
-    this.targetLevel = 1.5;  // мастер-буст — в окружении ambient лупы ощущаются тихо
+    this.targetLevel = 1.15; // мастер слегка приподнят, без агрессии — иначе лимитер «качает»
     this.bufferCache = new Map();   // url → AudioBuffer
     this.fetchPromises = new Map(); // url → Promise<AudioBuffer>
   }
@@ -697,12 +697,14 @@ class AmbientEngine {
     this.outGain = this.ctx.createGain();
     this.outGain.gain.value = this.targetLevel;
     // Мягкий лимитер на выходе — предотвращает клиппинг при мастер-бусте >1.0
+    // Прозрачный «safety» лимитер — срабатывает только при настоящих пиках,
+    // не «качает» громкость на каждой ноте фортепиано.
     this.limiter = this.ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -6;   // режем только высокие пики
-    this.limiter.knee.value = 6;          // мягкое вхождение
-    this.limiter.ratio.value = 12;        // агрессивно лимитируем то что выше
-    this.limiter.attack.value = 0.005;
-    this.limiter.release.value = 0.15;
+    this.limiter.threshold.value = -1;    // только защита от клиппинга
+    this.limiter.knee.value = 12;          // широкий knee — мягкое вхождение
+    this.limiter.ratio.value = 4;          // умеренная компрессия
+    this.limiter.attack.value = 0.010;
+    this.limiter.release.value = 0.400;    // длинный release — нет pumping
     this.outGain.connect(this.limiter).connect(this.ctx.destination);
     if (this.ctx.state === "suspended") await this.ctx.resume();
   }
