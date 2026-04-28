@@ -13,6 +13,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+<!-- Подгружаем только дефолтный луп заранее — остальные 4 лениво по запросу -->
+<link rel="prefetch" href="audio/still.ogg" as="audio" type="audio/ogg" />
 <style>
   :root {
     /* anchor neutral — warm linen, never pure white */
@@ -391,7 +393,9 @@ const STATES = [
     label: "FALLING",
     track: "Cold Lavender, No. 1",
     bg: "#D6CFDC", accent: "#3E3548", sleeve: "#E5DFE9",
-    // synthesis recipe — slow, low, sparse
+    loop: "audio/falling.ogg",
+    sample: { gain: 0.85, filterHz: 1800, rate: 0.96 },  // чуть медленнее и глухее
+    // fallback synth recipe — slow, low, sparse
     synth: { baseHz: 110, intervals: [0, 3, 7, 10], rateMs: 5200, pulseLen: 3.6, lfoHz: 0.08, filterHz: 480, gain: 0.18 }
   },
   {
@@ -399,6 +403,8 @@ const STATES = [
     label: "COOLING",
     track: "Pale Clay Drift",
     bg: "#E8DAD0", accent: "#7A4A3A", sleeve: "#F0E5DC",
+    loop: "audio/cooling.ogg",
+    sample: { gain: 0.80, filterHz: 2400, rate: 0.98 },
     synth: { baseHz: 130, intervals: [0, 3, 7], rateMs: 4400, pulseLen: 3.0, lfoHz: 0.12, filterHz: 700, gain: 0.18 }
   },
   {
@@ -406,6 +412,8 @@ const STATES = [
     label: "STILL",
     track: "Fog Study, No. 3",
     bg: "#EDE8E1", accent: "#6B6460", sleeve: "#F5F2EE",
+    loop: "audio/still.ogg",
+    sample: { gain: 0.78, filterHz: 3000, rate: 1.00 },
     synth: { baseHz: 146.83, intervals: [0, 5, 7], rateMs: 4000, pulseLen: 2.6, lfoHz: 0.18, filterHz: 900, gain: 0.16 }
   },
   {
@@ -413,6 +421,8 @@ const STATES = [
     label: "RISING",
     track: "Faded Moss",
     bg: "#D8E5D2", accent: "#4A7050", sleeve: "#E6EFE0",
+    loop: "audio/rising.ogg",
+    sample: { gain: 0.85, filterHz: 4000, rate: 1.00 },
     synth: { baseHz: 164.81, intervals: [0, 4, 7], rateMs: 3400, pulseLen: 2.4, lfoHz: 0.24, filterHz: 1200, gain: 0.18 }
   },
   {
@@ -420,6 +430,8 @@ const STATES = [
     label: "SURGE",
     track: "Sage Bloom",
     bg: "#BDD8B6", accent: "#2E5C35", sleeve: "#D2E4CB",
+    loop: "audio/surge.ogg",
+    sample: { gain: 0.92, filterHz: 5500, rate: 1.02 },  // чуть ярче и быстрее
     synth: { baseHz: 196.0, intervals: [0, 4, 7, 11], rateMs: 2800, pulseLen: 2.2, lfoHz: 0.32, filterHz: 1600, gain: 0.20 }
   }
 ];
@@ -504,6 +516,50 @@ class AmbientVoice {
   }
 }
 
+/* ---- Sample voice -------------------------------------------------------
+   Проигрывает один луп в loop=true режиме через BufferSource → lowpass → master.
+   Одноразовый «старт», фейды идут по master.gain — идентичный API с AmbientVoice.
+-------------------------------------------------------------------------- */
+class SampleVoice {
+  constructor(ctx, dest, buffer, params) {
+    this.ctx = ctx;
+    this.master = ctx.createGain();
+    this.master.gain.value = 0;
+    this.filter = ctx.createBiquadFilter();
+    this.filter.type = "lowpass";
+    this.filter.frequency.value = (params && params.filterHz) || 4000;
+    this.filter.Q.value = 0.4;
+    this.master.connect(this.filter).connect(dest);
+    this.src = ctx.createBufferSource();
+    this.src.buffer = buffer;
+    this.src.loop = true;
+    if (params && params.rate) this.src.playbackRate.value = params.rate;
+    this.src.connect(this.master);
+    this.peak = (params && params.gain) || 0.85;
+    this.alive = true;
+  }
+  start() {
+    try { this.src.start(); } catch (_) {}
+  }
+  setLevel(v, rampMs) {
+    const t0 = this.ctx.currentTime;
+    const ramp = (rampMs || 4000) / 1000;
+    this.master.gain.cancelScheduledValues(t0);
+    // линейный ramp до v * peak (нормализуем громкость сэмплов)
+    this.master.gain.linearRampToValueAtTime(v * this.peak, t0 + ramp);
+  }
+  stop(rampMs) {
+    this.alive = false;
+    this.setLevel(0, rampMs);
+    setTimeout(() => {
+      try { this.src.stop(); } catch (_) {}
+      try { this.src.disconnect(); } catch (_) {}
+      try { this.master.disconnect(); } catch (_) {}
+      try { this.filter.disconnect(); } catch (_) {}
+    }, (rampMs || 4000) + 200);
+  }
+}
+
 class AmbientEngine {
   constructor() {
     this.ctx = null;
@@ -511,6 +567,8 @@ class AmbientEngine {
     this.voice = null;
     this.muted = false;
     this.targetLevel = 1.0;
+    this.bufferCache = new Map();   // url → AudioBuffer
+    this.fetchPromises = new Map(); // url → Promise<AudioBuffer>
   }
   async ensureCtx() {
     if (this.ctx) return;
@@ -520,17 +578,47 @@ class AmbientEngine {
     this.outGain.connect(this.ctx.destination);
     if (this.ctx.state === "suspended") await this.ctx.resume();
   }
-  async setState(recipe) {
+  async _loadBuffer(url) {
+    if (this.bufferCache.has(url)) return this.bufferCache.get(url);
+    if (this.fetchPromises.has(url)) return this.fetchPromises.get(url);
+    const p = (async () => {
+      const res = await fetch(url, { cache: "force-cache" });
+      if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+      const arr = await res.arrayBuffer();
+      const buf = await this.ctx.decodeAudioData(arr);
+      this.bufferCache.set(url, buf);
+      return buf;
+    })();
+    this.fetchPromises.set(url, p);
+    try {
+      return await p;
+    } finally {
+      this.fetchPromises.delete(url);
+    }
+  }
+  async setState(state) {
     await this.ensureCtx();
-    // 1.5с — быстрый старт и всё ещё плавный cross-fade между состояниями
     const fadeMs = this.voice ? 3000 : 1500;
-    const newVoice = new AmbientVoice(this.ctx, this.outGain);
-    newVoice.start(recipe);
+    let newVoice = null;
+    // 1) Пробуем сэмпл. Если не получилось — fallback на синтез.
+    if (state.loop) {
+      try {
+        const buf = await this._loadBuffer(state.loop);
+        newVoice = new SampleVoice(this.ctx, this.outGain, buf, state.sample);
+        newVoice.start();
+      } catch (e) {
+        console.warn("sample load failed, falling back to synth:", state.id, e);
+        newVoice = null;
+      }
+    }
+    if (!newVoice) {
+      newVoice = new AmbientVoice(this.ctx, this.outGain);
+      newVoice.start(state.synth);
+    }
     newVoice.setLevel(0, 0);
     newVoice.setLevel(1.0, fadeMs);
     if (this.voice) {
-      const old = this.voice;
-      old.stop(fadeMs);
+      this.voice.stop(fadeMs);
     }
     this.voice = newVoice;
   }
@@ -668,7 +756,7 @@ async function setMarketState(state, force = false) {
   if (!force && lastState && state.id === lastState.id) return;
   lastState = state;
   applyVisualState(state);
-  if (started) await audio.setState(state.synth);
+  if (started) await audio.setState(state);
 }
 
 function updateTicker(price, pct) {
@@ -739,7 +827,7 @@ async function begin() {
   gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
   try {
     await audio.ensureCtx();
-    if (lastState) await audio.setState(lastState.synth);
+    if (lastState) await audio.setState(lastState);
     // помечаем что хотя бы раз запускался успешно — следующий визит попробует без жеста
     try { localStorage.setItem(RETURN_KEY, "1"); } catch (_) {}
   } catch (e) {
@@ -784,7 +872,7 @@ async function tryAutoStart() {
       dom.tapHint.classList.add("hidden");
       dom.onAir.classList.add("live");
       gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
-      if (lastState) await audio.setState(lastState.synth);
+      if (lastState) await audio.setState(lastState);
     }
   } catch (_) {
     // тихое падение — fallback на жест уже висит
