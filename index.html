@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>HODL FM — фоновое чувство рынка</title>
+<meta name="description" content="Фоновая музыка, меняющаяся по тренду биткоина. Не алёрт — ambient awareness. Made by Siberia Ventures." />
+<meta property="og:title" content="HODL FM" />
+<meta property="og:description" content="Фоновое чувство крипто-рынка. Без алёртов." />
+<meta name="theme-color" content="#EDE8E1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* anchor neutral — warm linen, never pure white */
+    --anchor: #EDE8E1;
+    --ink: #2A2520;
+    --muted: #6B6460;
+    --very-muted: #B0A99F;
+    --sleeve: #F5F2EE;
+
+    /* state-driven, set by JS */
+    --bg: #EDE8E1;
+    --accent: #6B6460;
+
+    /* timings (concept §5) */
+    --t-bg: 4000ms;
+    --t-sleeve: 3000ms;
+    --t-text: 600ms;
+    --t-quick: 160ms;
+
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);   /* expo-out */
+    --ease-quick: ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :root { --t-bg: 200ms; --t-sleeve: 200ms; --t-text: 300ms; --t-quick: 0ms; }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "DM Sans", system-ui, -apple-system, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color var(--t-bg) var(--ease);
+  }
+
+  .app {
+    position: relative;
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 24px clamp(20px, 4vw, 40px);
+  }
+
+  /* ---- Header --------------------------------------------------------- */
+  header {
+    font-size: 13px;
+    color: var(--very-muted);
+    letter-spacing: 0.02em;
+  }
+  .wordmark { font-weight: 500; letter-spacing: 0.14em; }
+
+  /* ---- Main: sleeve, ticker, CTA ------------------------------------- */
+  main {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 28px;
+    transform: translateY(-4%);  /* optical centering, not mathematical */
+  }
+
+  .sleeve {
+    width: 320px; max-width: calc(100vw - 40px);
+    background: var(--sleeve);
+    border: 1px solid var(--accent);
+    padding: 22px 22px 18px 22px;
+    display: grid;
+    gap: 6px;
+    transition: border-color var(--t-sleeve) var(--ease), background-color var(--t-sleeve) var(--ease);
+  }
+  .state-name {
+    font-family: "DM Serif Display", Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(40px, 6vw, 56px);
+    line-height: 1.0;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    transition: opacity var(--t-text) var(--ease-quick);
+  }
+  .state-name.swap { opacity: 0; }
+
+  .track-name {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+    transition: opacity var(--t-text) var(--ease-quick);
+  }
+  .track-name.swap { opacity: 0; }
+
+  /* visualizer — 5 thin bars, bottom-aligned */
+  .viz {
+    display: flex; gap: 5px;
+    height: 24px;
+    align-items: flex-end;
+    margin-top: 10px;
+    transition: opacity 800ms var(--ease-quick);
+  }
+  .viz.muted { opacity: 0.2; }
+  .viz .bar {
+    width: 3px;
+    background: var(--accent);
+    transform-origin: bottom;
+    transform: scaleY(0.4);
+    transition: background-color var(--t-sleeve) var(--ease);
+    will-change: transform;
+  }
+
+  /* ticker line under sleeve */
+  .ticker {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0;
+    display: flex; gap: 14px; align-items: baseline;
+  }
+  .ticker .price { color: var(--ink); }
+  .ticker .delta-up { color: #2E5C35; }
+  .ticker .delta-down { color: #7A4A3A; }
+  .mute-btn {
+    background: none; border: 0; padding: 0; margin: 0;
+    color: var(--muted);
+    font: inherit;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer;
+    transition: color var(--t-quick) var(--ease-quick), transform 80ms var(--ease-quick);
+  }
+  .mute-btn:hover { color: var(--ink); }
+  .mute-btn:active { transform: scale(0.85); }
+
+  /* CTA */
+  .cta {
+    font-family: "DM Sans", sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--accent);
+    padding: 10px 24px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex; gap: 6px; align-items: center;
+    transition:
+      background-color var(--t-quick) var(--ease-quick),
+      color var(--t-quick) var(--ease-quick),
+      border-color var(--t-sleeve) var(--ease),
+      transform 80ms var(--ease-quick);
+  }
+  .cta .arrow { transition: transform var(--t-quick) var(--ease-quick); display: inline-block; }
+  .cta:hover { background: var(--accent); color: var(--anchor); }
+  .cta:hover .arrow { transform: translateX(4px); }
+  .cta:active { transform: scale(0.99); }
+
+  /* ---- Footer --------------------------------------------------------- */
+  footer {
+    display: flex; justify-content: flex-end;
+    font-size: 11px;
+    color: var(--very-muted);
+  }
+  footer a {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--t-quick) var(--ease-quick);
+  }
+  footer a:hover { color: var(--accent); }
+
+  /* ---- Tap-to-begin (replaces sleeve until first gesture) ------------ */
+  .tap-hint {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    user-select: none;
+    padding: 12px 18px;
+    transition: color var(--t-quick) var(--ease-quick);
+  }
+  .tap-hint:hover { color: var(--ink); }
+
+  .hidden { display: none !important; }
+
+  /* status dot for connection */
+  .status-line {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--very-muted);
+    letter-spacing: 0;
+    margin-top: 4px;
+    height: 14px;
+    transition: opacity var(--t-text) var(--ease-quick);
+    opacity: 0;
+  }
+  .status-line.visible { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="app" aria-live="polite">
+    <header>
+      <span class="wordmark">HODL FM</span>
+    </header>
+
+    <main>
+      <div class="sleeve" id="sleeve">
+        <div class="state-name" id="state-name">—</div>
+        <div class="track-name" id="track-name">—</div>
+        <div class="viz" id="viz" aria-hidden="true">
+          <span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span><span class="bar"></span>
+          <span class="bar"></span>
+        </div>
+      </div>
+
+      <div class="ticker">
+        <span class="price" id="price">— —</span>
+        <span id="delta">—</span>
+        <button class="mute-btn" id="mute" aria-label="mute / unmute">◉</button>
+      </div>
+      <div class="status-line" id="status">reconnecting</div>
+
+      <a class="cta" id="cta" href="#" target="_blank" rel="noopener">
+        <span>Trade on Hyperliquid</span><span class="arrow">→</span>
+      </a>
+
+      <div class="tap-hint hidden" id="tap-hint">tap anywhere to begin</div>
+    </main>
+
+    <footer>
+      <span>made by <a href="https://siberia.fund" target="_blank" rel="noopener">Siberia Ventures</a></span>
+    </footer>
+  </div>
+
+<script>
+/* =========================================================================
+   crypto-mood V0.5
+   - CoinGecko 1h price change (CORS-friendly, no geoblock)
+   - 5 states by % change: FALLING / COOLING / STILL / RISING / SURGE
+   - Per-state ambient synthesis via Web Audio API (no external mp3)
+   - Cross-fade between two voices on state change (~5–8s)
+   - Visual transitions per design concept §5 (4000ms expo-out via anchor)
+   ========================================================================= */
+
+/* ---- States (concept §2) ------------------------------------------------ */
+// thresholds in % BTC change vs 1h ago
+const STATES = [
+  {
+    id: "falling", min: -Infinity, max: -1.5,
+    label: "FALLING",
+    track: "Cold Lavender, No. 1",
+    bg: "#E2DDE4", accent: "#3E3548",
+    // synthesis recipe — slow, low, sparse
+    synth: { baseHz: 110, intervals: [0, 3, 7, 10], rateMs: 5200, pulseLen: 3.6, lfoHz: 0.08, filterHz: 480, gain: 0.18 }
+  },
+  {
+    id: "cooling", min: -1.5, max: -0.3,
+    label: "COOLING",
+    track: "Pale Clay Drift",
+    bg: "#EDE4DD", accent: "#7A4A3A",
+    synth: { baseHz: 130, intervals: [0, 3, 7], rateMs: 4400, pulseLen: 3.0, lfoHz: 0.12, filterHz: 700, gain: 0.18 }
+  },
+  {
+    id: "still", min: -0.3, max: 0.3,
+    label: "STILL",
+    track: "Fog Study, No. 3",
+    bg: "#EDE8E1", accent: "#6B6460",
+    synth: { baseHz: 146.83, intervals: [0, 5, 7], rateMs: 4000, pulseLen: 2.6, lfoHz: 0.18, filterHz: 900, gain: 0.16 }
+  },
+  {
+    id: "rising", min: 0.3, max: 1.5,
+    label: "RISING",
+    track: "Faded Moss",
+    bg: "#E3EDE0", accent: "#4A7050",
+    synth: { baseHz: 164.81, intervals: [0, 4, 7], rateMs: 3400, pulseLen: 2.4, lfoHz: 0.24, filterHz: 1200, gain: 0.18 }
+  },
+  {
+    id: "surge", min: 1.5, max: Infinity,
+    label: "SURGE",
+    track: "Sage Bloom",
+    bg: "#D4E6D0", accent: "#2E5C35",
+    synth: { baseHz: 196.0, intervals: [0, 4, 7, 11], rateMs: 2800, pulseLen: 2.2, lfoHz: 0.32, filterHz: 1600, gain: 0.20 }
+  }
+];
+
+/* ---- Ambient synth voice ------------------------------------------------
+   Each "voice" plays a slow arpeggio of pad-tones generated procedurally.
+   Two voices total — we cross-fade between them on state change.
+-------------------------------------------------------------------------- */
+class AmbientVoice {
+  constructor(ctx, dest) {
+    this.ctx = ctx;
+    this.master = ctx.createGain();
+    this.master.gain.value = 0;
+    this.filter = ctx.createBiquadFilter();
+    this.filter.type = "lowpass";
+    this.filter.frequency.value = 800;
+    this.filter.Q.value = 0.6;
+    this.master.connect(this.filter).connect(dest);
+    this.recipe = null;
+    this.timer = null;
+    this.lfo = null; this.lfoGain = null;
+    this.alive = true;
+  }
+  start(recipe) {
+    this.recipe = recipe;
+    this.filter.frequency.cancelScheduledValues(this.ctx.currentTime);
+    this.filter.frequency.linearRampToValueAtTime(recipe.filterHz, this.ctx.currentTime + 4);
+    // slow LFO modulating filter for breathing feel
+    this.lfo = this.ctx.createOscillator();
+    this.lfo.frequency.value = recipe.lfoHz;
+    this.lfoGain = this.ctx.createGain();
+    this.lfoGain.gain.value = recipe.filterHz * 0.25;
+    this.lfo.connect(this.lfoGain).connect(this.filter.frequency);
+    this.lfo.start();
+    this._scheduleNextNote();
+  }
+  _scheduleNextNote() {
+    if (!this.alive) return;
+    const r = this.recipe;
+    const interval = r.intervals[Math.floor(Math.random() * r.intervals.length)];
+    const octave = Math.random() < 0.3 ? 2 : 1;
+    const hz = r.baseHz * Math.pow(2, (interval + (octave - 1) * 12) / 12);
+    this._playNote(hz, r.pulseLen);
+    const jitter = r.rateMs * (0.7 + Math.random() * 0.6);
+    this.timer = setTimeout(() => this._scheduleNextNote(), jitter);
+  }
+  _playNote(hz, durSec) {
+    const t0 = this.ctx.currentTime;
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    osc1.type = "sine"; osc2.type = "triangle";
+    osc1.frequency.value = hz;
+    osc2.frequency.value = hz * 1.005;  // slight detune for warmth
+    const env = this.ctx.createGain();
+    env.gain.value = 0;
+    osc1.connect(env); osc2.connect(env);
+    env.connect(this.master);
+    const peak = this.recipe.gain;
+    env.gain.linearRampToValueAtTime(peak, t0 + durSec * 0.3);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + durSec);
+    osc1.start(t0); osc2.start(t0);
+    osc1.stop(t0 + durSec + 0.1);
+    osc2.stop(t0 + durSec + 0.1);
+  }
+  setLevel(v, rampMs) {
+    const t0 = this.ctx.currentTime;
+    const ramp = (rampMs || 4000) / 1000;
+    this.master.gain.cancelScheduledValues(t0);
+    this.master.gain.linearRampToValueAtTime(v, t0 + ramp);
+  }
+  stop(rampMs) {
+    this.alive = false;
+    this.setLevel(0, rampMs);
+    setTimeout(() => {
+      try { this.lfo && this.lfo.stop(); } catch(e){}
+      try { this.master.disconnect(); } catch(e){}
+      try { this.filter.disconnect(); } catch(e){}
+      if (this.timer) clearTimeout(this.timer);
+    }, (rampMs || 4000) + 200);
+  }
+}
+
+class AmbientEngine {
+  constructor() {
+    this.ctx = null;
+    this.outGain = null;
+    this.voice = null;
+    this.muted = false;
+    this.targetLevel = 1.0;
+  }
+  async ensureCtx() {
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.outGain = this.ctx.createGain();
+    this.outGain.gain.value = this.targetLevel;
+    this.outGain.connect(this.ctx.destination);
+    if (this.ctx.state === "suspended") await this.ctx.resume();
+  }
+  async setState(recipe) {
+    await this.ensureCtx();
+    const fadeMs = 6000;
+    const newVoice = new AmbientVoice(this.ctx, this.outGain);
+    newVoice.start(recipe);
+    newVoice.setLevel(0, 0);
+    newVoice.setLevel(1.0, fadeMs);
+    if (this.voice) {
+      const old = this.voice;
+      old.stop(fadeMs);
+    }
+    this.voice = newVoice;
+  }
+  setMuted(m) {
+    this.muted = m;
+    if (!this.outGain) return;
+    const t0 = this.ctx.currentTime;
+    this.outGain.gain.cancelScheduledValues(t0);
+    this.outGain.gain.linearRampToValueAtTime(m ? 0 : this.targetLevel, t0 + 0.4);
+  }
+}
+
+/* ---- Visualizer --------------------------------------------------------- */
+class Visualizer {
+  constructor(el) {
+    this.bars = Array.from(el.querySelectorAll(".bar"));
+    this.alive = true;
+    this._tick();
+  }
+  _tick() {
+    if (!this.alive) return;
+    this.bars.forEach((bar) => {
+      const h = 0.3 + Math.random() * 0.9;
+      const dur = 600 + Math.random() * 300;
+      bar.style.transition = `transform ${dur}ms cubic-bezier(0.32, 0.72, 0, 1)`;
+      bar.style.transform = `scaleY(${h})`;
+    });
+    setTimeout(() => this._tick(), 700);
+  }
+}
+
+/* ---- DOM ---------------------------------------------------------------- */
+const $ = (id) => document.getElementById(id);
+const dom = {
+  stateName: $("state-name"),
+  trackName: $("track-name"),
+  sleeve: $("sleeve"),
+  viz: $("viz"),
+  price: $("price"),
+  delta: $("delta"),
+  mute: $("mute"),
+  cta: $("cta"),
+  tapHint: $("tap-hint"),
+  status: $("status")
+};
+const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA"; // TODO: real ref after legal check
+dom.cta.href = CTA_URL;
+
+const audio = new AmbientEngine();
+const viz = new Visualizer(dom.viz);
+
+/* ---- State management --------------------------------------------------- */
+let lastState = null;
+let started = false;
+let online = false;
+
+function classifyState(pct) {
+  return STATES.find(s => pct >= s.min && pct < s.max) || STATES[2];
+}
+
+function applyVisualState(state) {
+  // background goes through anchor — done in two phases via CSS variables
+  // Phase 1: to anchor
+  document.documentElement.style.setProperty("--bg", "var(--anchor)");
+  document.documentElement.style.setProperty("--accent", state.accent);
+  setTimeout(() => {
+    document.documentElement.style.setProperty("--bg", state.bg);
+  }, 1800);  // halfway through 4000ms transition
+
+  // swap state name with cross-fade
+  dom.stateName.classList.add("swap");
+  dom.trackName.classList.add("swap");
+  setTimeout(() => {
+    dom.stateName.textContent = state.label;
+    setTimeout(() => dom.stateName.classList.remove("swap"), 50);
+  }, 600);
+  setTimeout(() => {
+    dom.trackName.textContent = state.track;
+    setTimeout(() => dom.trackName.classList.remove("swap"), 50);
+  }, 1000);
+}
+
+async function setMarketState(state, force = false) {
+  if (!force && lastState && state.id === lastState.id) return;
+  lastState = state;
+  applyVisualState(state);
+  if (started) await audio.setState(state.synth);
+}
+
+function updateTicker(price, pct) {
+  dom.price.textContent = "₿ " + price.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const sign = pct >= 0 ? "+" : "";
+  dom.delta.textContent = sign + pct.toFixed(2) + "%  · 1h";
+  dom.delta.className = pct >= 0 ? "delta-up" : "delta-down";
+}
+
+function setStatus(text) {
+  if (text) {
+    dom.status.textContent = text;
+    dom.status.classList.add("visible");
+  } else {
+    dom.status.classList.remove("visible");
+  }
+}
+
+/* ---- Price polling ------------------------------------------------------ */
+async function fetchBtc() {
+  const url = "https://api.coingecko.com/api/v3/coins/markets"
+            + "?vs_currency=usd&ids=bitcoin&price_change_percentage=1h";
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error("coingecko " + res.status);
+  const arr = await res.json();
+  return {
+    price: arr[0].current_price,
+    pct: arr[0].price_change_percentage_1h_in_currency ?? 0
+  };
+}
+
+async function tick() {
+  try {
+    const { price, pct } = await fetchBtc();
+    online = true;
+    setStatus("");
+    updateTicker(price, pct);
+    const state = classifyState(pct);
+    await setMarketState(state);
+  } catch (e) {
+    console.warn("price fetch failed", e);
+    online = false;
+    setStatus("reconnecting");
+  }
+}
+
+/* ---- First-gesture gate (autoplay) -------------------------------------
+   Sleeve виден всегда. Tap-hint — маленькая подсказка внизу до первого жеста.
+-------------------------------------------------------------------------- */
+async function begin() {
+  if (started) return;
+  started = true;
+  dom.tapHint.classList.add("hidden");
+  await audio.ensureCtx();
+  if (lastState) await audio.setState(lastState.synth);
+}
+
+dom.tapHint.addEventListener("click", begin);
+document.addEventListener("click", (e) => {
+  if (!started) begin();
+}, { once: true });
+document.addEventListener("keydown", () => { if (!started) begin(); }, { once: true });
+
+dom.mute.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (!started) { begin(); return; }
+  const m = !audio.muted;
+  audio.setMuted(m);
+  dom.mute.textContent = m ? "○" : "◉";
+  dom.viz.classList.toggle("muted", m);
+});
+
+dom.cta.addEventListener("click", (e) => e.stopPropagation());
+
+/* ---- Boot --------------------------------------------------------------- */
+// Показываем дефолтное STILL сразу, чтобы sleeve не был пустым до первого fetch'а.
+const stillState = STATES.find(s => s.id === "still");
+dom.stateName.textContent = stillState.label;
+dom.trackName.textContent = stillState.track;
+document.documentElement.style.setProperty("--bg", stillState.bg);
+document.documentElement.style.setProperty("--accent", stillState.accent);
+lastState = stillState;
+dom.tapHint.classList.remove("hidden");
+tick();
+setInterval(tick, 60_000);
+</script>
+</body>
+</html>
