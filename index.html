@@ -1001,15 +1001,17 @@ function setStatus(text) {
 
 /* ---- Price polling ------------------------------------------------------ */
 async function fetchBtc() {
-  const url = "https://api.coingecko.com/api/v3/coins/markets"
-            + "?vs_currency=usd&ids=bitcoin&price_change_percentage=1h";
+  // Binance Vision — публичное market-data зеркало без геоблоков, CORS открыт (* для origin).
+  // Берём последнюю 1h-свечу, считаем % = (close - open) / open.
+  const url = "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=2";
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error("coingecko " + res.status);
-  const arr = await res.json();
-  return {
-    price: arr[0].current_price,
-    pct: arr[0].price_change_percentage_1h_in_currency ?? 0
-  };
+  if (!res.ok) throw new Error("binance " + res.status);
+  const k = await res.json();
+  const cur = k[1] || k[0];
+  const open = parseFloat(cur[1]);
+  const close = parseFloat(cur[4]);
+  const pct = open > 0 ? ((close - open) / open) * 100 : 0;
+  return { price: close, pct };
 }
 
 async function tick() {
@@ -1089,18 +1091,9 @@ async function tryAutoStart() {
   // Вернувшемуся пользователю оверлей не нужен — скрываем сразу
   dom.welcome.classList.add("hidden");
   if (started) return;
-  try {
-    await audio.ensureCtx();
-    if (audio.ctx && audio.ctx.state === "running") {
-      started = true;
-      dom.tapHint.classList.add("hidden");
-      dom.onAir.classList.add("live");
-      gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
-      if (lastState) await audio.setState(lastState);
-    }
-  } catch (_) {
-    // тихое падение — fallback на жест уже висит
-  }
+  // НЕ создаём AudioContext до первого жеста — иначе браузер пишет autoplay-warning в console.
+  // Первый же клик/тап/скролл запустит audio через gestureHandler.
+  dom.tapHint.classList.remove("hidden");
 }
 
 dom.mute.addEventListener("click", (e) => {
@@ -1133,7 +1126,7 @@ lastState = stillState;
   // иначе welcome уже виден по дефолту, tapHint остаётся hidden
 }
 tick();
-// 15с — частый опрос для ¨живого¨ фона. CoinGecko free допускает ~30 req/min, мы делаем 4
+// 15с — частый опрос для «живого» фона. Binance Vision: лимиты публичные, ~6000 weight/min.
 setInterval(tick, 15_000);
 tryAutoStart();
 </script>
