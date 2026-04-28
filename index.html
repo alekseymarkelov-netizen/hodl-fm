@@ -14,7 +14,7 @@
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
 <!-- Подгружаем только дефолтный луп заранее — остальные 4 лениво по запросу -->
-<link rel="prefetch" href="audio/still.ogg" as="audio" type="audio/ogg" />
+<link rel="prefetch" href="audio/still-v3-mixkit.ogg" as="audio" type="audio/ogg" />
 <style>
   :root {
     /* anchor neutral — warm linen, never pure white */
@@ -514,7 +514,7 @@ const STATES = [
     label: "FALLING",
     track: "Cold Lavender, No. 1",
     bg: "#D6CFDC", accent: "#3E3548", sleeve: "#E5DFE9",
-    loop: "audio/falling.ogg",
+    loop: "audio/falling-v3-mixkit.ogg",
     sample: { gain: 1.30, filterHz: 1400, rate: 1.00 },  // C2-drone, глубокий
     // fallback synth recipe — slow, low, sparse
     synth: { baseHz: 110, intervals: [0, 3, 7, 10], rateMs: 5200, pulseLen: 3.6, lfoHz: 0.08, filterHz: 480, gain: 0.18 }
@@ -524,7 +524,7 @@ const STATES = [
     label: "COOLING",
     track: "Pale Clay Drift",
     bg: "#E8DAD0", accent: "#7A4A3A", sleeve: "#F0E5DC",
-    loop: "audio/cooling.ogg",
+    loop: "audio/cooling-v3-mixkit.ogg",
     sample: { gain: 1.30, filterHz: 1800, rate: 1.00 },  // E2-drone
     synth: { baseHz: 130, intervals: [0, 3, 7], rateMs: 4400, pulseLen: 3.0, lfoHz: 0.12, filterHz: 700, gain: 0.18 }
   },
@@ -533,7 +533,7 @@ const STATES = [
     label: "STILL",
     track: "Fog Study, No. 3",
     bg: "#EDE8E1", accent: "#6B6460", sleeve: "#F5F2EE",
-    loop: "audio/still.ogg",
+    loop: "audio/still-v3-mixkit.ogg",
     sample: { gain: 1.30, filterHz: 2400, rate: 1.00 },  // G2-drone, нейтральный
     synth: { baseHz: 146.83, intervals: [0, 5, 7], rateMs: 4000, pulseLen: 2.6, lfoHz: 0.18, filterHz: 900, gain: 0.16 }
   },
@@ -542,7 +542,7 @@ const STATES = [
     label: "RISING",
     track: "Faded Moss",
     bg: "#D8E5D2", accent: "#4A7050", sleeve: "#E6EFE0",
-    loop: "audio/rising.ogg",
+    loop: "audio/rising-v3-mixkit.ogg",
     sample: { gain: 1.30, filterHz: 3200, rate: 1.00 },  // C3-drone
     synth: { baseHz: 164.81, intervals: [0, 4, 7], rateMs: 3400, pulseLen: 2.4, lfoHz: 0.24, filterHz: 1200, gain: 0.18 }
   },
@@ -551,7 +551,7 @@ const STATES = [
     label: "SURGE",
     track: "Sage Bloom",
     bg: "#BDD8B6", accent: "#2E5C35", sleeve: "#D2E4CB",
-    loop: "audio/surge.ogg",
+    loop: "audio/surge-v3-mixkit.ogg",
     sample: { gain: 1.35, filterHz: 4500, rate: 1.00 },  // E3-drone, яркий
     synth: { baseHz: 196.0, intervals: [0, 4, 7, 11], rateMs: 2800, pulseLen: 2.2, lfoHz: 0.32, filterHz: 1600, gain: 0.20 }
   }
@@ -870,7 +870,7 @@ async function eagerPrefetch(url) {
   // ляжет в HTTP-кэш браузера — его повторный fetch в энджине будет мгновенным.
   try { await fetch(url, { cache: "force-cache" }); } catch (_) {}
 }
-eagerPrefetch("audio/still.ogg");
+eagerPrefetch("audio/still-v3-mixkit.ogg");
 
 audio.onLoadingChange((loading) => {
   if (!dom.welcome.classList.contains("hidden")) {
