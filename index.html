@@ -531,21 +531,69 @@ async function tick() {
 }
 
 /* ---- First-gesture gate (autoplay) -------------------------------------
-   Sleeve виден всегда. Tap-hint — маленькая подсказка внизу до первого жеста.
+   Стратегия:
+   1. На первом визите ждём любой жест (mousemove/scroll/touch/key/click).
+      Порог почти невидим — пользователь просто двигает мышь.
+   2. После первого успеха пишем флаг в localStorage.
+   3. На повторных визитах пытаемся resume() сразу — Chrome разрешит без
+      жеста через Media Engagement Index, если слушали ≥7с в прошлый раз.
+      Если отказ — тихо падаем на fallback (любой жест).
 -------------------------------------------------------------------------- */
+const RETURN_KEY = "hodlfm.audioOk";
+const gestureEvents = ["pointerdown", "click", "keydown", "touchstart", "mousemove", "scroll", "wheel"];
+
 async function begin() {
   if (started) return;
   started = true;
   dom.tapHint.classList.add("hidden");
-  await audio.ensureCtx();
-  if (lastState) await audio.setState(lastState.synth);
+  // отписываемся от всех gesture-листенеров, чтобы без утечек
+  gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
+  try {
+    await audio.ensureCtx();
+    if (lastState) await audio.setState(lastState.synth);
+    // помечаем что хотя бы раз запускался успешно — следующий визит попробует без жеста
+    try { localStorage.setItem(RETURN_KEY, "1"); } catch (_) {}
+  } catch (e) {
+    console.warn("audio start failed", e);
+    started = false;
+    dom.tapHint.classList.remove("hidden");
+  }
 }
 
-dom.tapHint.addEventListener("click", begin);
-document.addEventListener("click", (e) => {
+function gestureHandler() {
   if (!started) begin();
-}, { once: true });
-document.addEventListener("keydown", () => { if (!started) begin(); }, { once: true });
+}
+
+// Широкий набор жестов — любое взаимодействие стартует звук.
+// passive: true — не блокируем скролл/жесты. capture: true — ловим раньше всех.
+gestureEvents.forEach(ev => {
+  document.addEventListener(ev, gestureHandler, { passive: true, capture: true });
+});
+
+// Попытка немедленного старта для вернувшихся (Media Engagement Index).
+// Если браузер разрешит — audio заиграет без жеста. Если нет — останемся в suspended
+// и первый же жест из gestureHandler его разбудит.
+function tryAutoStart() {
+  let returning = false;
+  try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
+  if (!returning) return;
+  // Пробуем через короткий таймаут — даём браузеру отрисовать страницу.
+  setTimeout(async () => {
+    if (started) return;
+    try {
+      await audio.ensureCtx();
+      // Если контекст после ensureCtx в "running" — браузер разрешил autoplay.
+      if (audio.ctx && audio.ctx.state === "running") {
+        started = true;
+        dom.tapHint.classList.add("hidden");
+        gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
+        if (lastState) await audio.setState(lastState.synth);
+      }
+    } catch (_) {
+      // тихое падение — fallback на жест уже висит
+    }
+  }, 200);
+}
 
 dom.mute.addEventListener("click", (e) => {
   e.stopPropagation();
@@ -569,6 +617,7 @@ lastState = stillState;
 dom.tapHint.classList.remove("hidden");
 tick();
 setInterval(tick, 60_000);
+tryAutoStart();
 </script>
 </body>
 </html>
