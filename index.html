@@ -715,12 +715,27 @@ class AmbientEngine {
     if (this.bufferCache.has(url)) return this.bufferCache.get(url);
     if (this.fetchPromises.has(url)) return this.fetchPromises.get(url);
     const p = (async () => {
-      const res = await fetch(url, { cache: "force-cache" });
-      if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
-      const arr = await res.arrayBuffer();
-      const buf = await this.ctx.decodeAudioData(arr);
-      this.bufferCache.set(url, buf);
-      return buf;
+      // Retry с экспоненциальным бэкоффом — лечит ERR_CONNECTION_RESET
+      // (рвёт обычно антивирус/MITM-прокси на первом большом TLS-потоке).
+      let lastErr;
+      for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+          if (attempt > 0) {
+            const delay = 200 * Math.pow(2, attempt - 1) + Math.random() * 100;
+            await new Promise(r => setTimeout(r, delay));
+          }
+          const res = await fetch(url, { cache: "force-cache" });
+          if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
+          const arr = await res.arrayBuffer();
+          const buf = await this.ctx.decodeAudioData(arr.slice(0));
+          this.bufferCache.set(url, buf);
+          return buf;
+        } catch (e) {
+          lastErr = e;
+          console.warn(`audio load retry ${attempt + 1}/4 for ${url}:`, e.message || e);
+        }
+      }
+      throw lastErr || new Error("audio load failed after retries");
     })();
     this.fetchPromises.set(url, p);
     try {
@@ -1041,7 +1056,9 @@ async function tick() {
       Если отказ — тихо падаем на fallback (любой жест).
 -------------------------------------------------------------------------- */
 const RETURN_KEY = "hodlfm.audioOk";
-const gestureEvents = ["pointerdown", "click", "keydown", "touchstart", "mousemove", "scroll", "wheel"];
+// Только "интенциональные" жесты — mousemove/scroll/wheel Chrome не считает достаточными
+// для autoplay-разрешения, поэтому они рождают console-warning при вызове ensureCtx.
+const gestureEvents = ["pointerdown", "click", "keydown", "touchstart"];
 
 async function begin() {
   if (started) return;
