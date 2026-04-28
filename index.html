@@ -134,6 +134,85 @@
   }
   .track-name.swap { opacity: 0; }
 
+  /* ---- Radio dial — 5 состояний с иглой по точному % изменения */
+  .dial {
+    margin-top: 14px;
+    display: grid;
+    gap: 6px;
+    user-select: none;
+  }
+  .dial-track {
+    position: relative;
+    height: 18px;
+  }
+  .dial-ticks {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+  /* 21 риска: каждая 5-я выше («главные» отметки на лейблах) */
+  .dial-tick {
+    width: 1px;
+    height: 6px;
+    background: var(--very-muted);
+    opacity: 0.5;
+    transition: background-color var(--t-sleeve) var(--ease);
+  }
+  .dial-tick.major {
+    height: 12px;
+    opacity: 0.85;
+  }
+  .dial-needle {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: var(--accent);
+    transform: translateX(-1px);
+    transition: left 11000ms var(--ease), background-color var(--t-sleeve) var(--ease);
+    /* риски ниже иглы по Z, игла всегда поверх */
+    z-index: 1;
+  }
+  .dial-needle::before {
+    /* маленькая точка-«бусина» на верху иглы */
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translateX(-50%);
+    transition: background-color var(--t-sleeve) var(--ease);
+  }
+  .dial-labels {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    color: var(--very-muted);
+  }
+  .dial-label {
+    transition: color var(--t-text) var(--ease), opacity var(--t-text) var(--ease);
+    opacity: 0.5;
+  }
+  .dial-label.active {
+    color: var(--ink);
+    opacity: 1;
+  }
+  .dial-label.adjacent {
+    opacity: 0.75;
+  }
+  /* Скрываем крайние лейблы на узких сливах чтобы не переносились */
+  @media (max-width: 360px) {
+    .dial-labels { font-size: 8.5px; letter-spacing: 0.10em; }
+  }
+
   /* visualizer — 5 thin bars, bottom-aligned */
   .viz {
     display: flex; gap: 5px;
@@ -365,6 +444,19 @@
       <div class="sleeve" id="sleeve">
         <div class="state-name" id="state-name">—</div>
         <div class="track-name" id="track-name">—</div>
+        <div class="dial" aria-hidden="true">
+          <div class="dial-track">
+            <div class="dial-ticks" id="dial-ticks"></div>
+            <div class="dial-needle" id="dial-needle"></div>
+          </div>
+          <div class="dial-labels" id="dial-labels">
+            <span class="dial-label" data-id="falling">FALLING</span>
+            <span class="dial-label" data-id="cooling">COOLING</span>
+            <span class="dial-label" data-id="still">STILL</span>
+            <span class="dial-label" data-id="rising">RISING</span>
+            <span class="dial-label" data-id="surge">SURGE</span>
+          </div>
+        </div>
         <div class="viz" id="viz" aria-hidden="true">
           <span class="bar"></span><span class="bar"></span>
           <span class="bar"></span><span class="bar"></span>
@@ -727,8 +819,21 @@ const dom = {
   welcome: $("welcome"),
   welcomePlay: $("welcome-play"),
   welcomeFoot: $("welcome-foot"),
-  onAir: $("on-air")
+  onAir: $("on-air"),
+  dialNeedle: $("dial-needle"),
+  dialLabels: $("dial-labels"),
+  dialTicks: $("dial-ticks")
 };
+
+/* ---- Radio dial init: populate 21 ticks, every 5th .major ---- */
+(function initDialTicks() {
+  if (!dom.dialTicks) return;
+  for (let i = 0; i <= 20; i++) {
+    const tick = document.createElement("div");
+    tick.className = "dial-tick" + (i % 5 === 0 ? " major" : "");
+    dom.dialTicks.appendChild(tick);
+  }
+})();
 const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA"; // TODO: real ref after legal check
 dom.cta.href = CTA_URL;
 
@@ -823,7 +928,32 @@ function applyContinuousColor(pct) {
   root.setProperty("--bg", c.bg);
   root.setProperty("--accent", c.accent);
   root.setProperty("--sleeve", c.sleeve);
+  applyDial(pct);
 }
+
+/* ---- Dial: position needle and highlight active/adjacent labels --------
+   pct -2.5..+2.5 → needle.left 0..100%. Anchor для лейблов:
+   FALLING=-2.5, COOLING=-0.9, STILL=0, RISING=0.9, SURGE=2.5.
+-------------------------------------------------------------------------- */
+function applyDial(pct) {
+  if (!dom.dialNeedle || !dom.dialLabels) return;
+  const clamped = Math.max(-2.5, Math.min(2.5, pct));
+  const left = ((clamped + 2.5) / 5.0) * 100;
+  dom.dialNeedle.style.left = left + "%";
+
+  const active = classifyState(pct);
+  const order = ["falling", "cooling", "still", "rising", "surge"];
+  const idx = order.indexOf(active.id);
+  Array.from(dom.dialLabels.querySelectorAll(".dial-label")).forEach(el => {
+    el.classList.remove("active", "adjacent");
+    const i = order.indexOf(el.dataset.id);
+    if (i === idx) el.classList.add("active");
+    else if (Math.abs(i - idx) === 1) el.classList.add("adjacent");
+  });
+}
+
+// Initial dial state — needle на STILL до первого fetch'а
+applyDial(0);
 
 function applyVisualState(state) {
   // swap state name with cross-fade (текст меняется дискретно при переходе границы)
