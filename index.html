@@ -731,7 +731,9 @@ class AmbientEngine {
   }
   async setState(state) {
     await this.ensureCtx();
-    const fadeMs = this.voice ? 3000 : 1500;
+    // Первый запуск — короткий fade-in (250мс) чтобы избежать click без ощутимой задержки.
+    // Переключения между состояниями — плавнее (3с) для музыкальности.
+    const fadeMs = this.voice ? 3000 : 250;
     this._setStateSeq = (this._setStateSeq || 0) + 1;
     const seq = this._setStateSeq;
 
