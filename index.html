@@ -11,7 +11,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EDE8E1'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%237A8472'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   :root {
     /* anchor neutral — warm linen, never pure white */
@@ -26,8 +27,8 @@
     --accent: #6B6460;
 
     /* timings (concept §5) */
-    --t-bg: 4000ms;
-    --t-sleeve: 3000ms;
+    --t-bg: 12000ms;       /* длинный fade чтобы цвет всё время «дышал» между tick'ами раз в 15с */
+    --t-sleeve: 8000ms;
     --t-text: 600ms;
     --t-quick: 160ms;
 
@@ -63,8 +64,36 @@
     font-size: 13px;
     color: var(--very-muted);
     letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 14px;
   }
   .wordmark { font-weight: 500; letter-spacing: 0.14em; }
+
+  .on-air {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity 600ms var(--ease), transform 600ms var(--ease), color var(--t-sleeve) var(--ease);
+    pointer-events: none;
+  }
+  .on-air.live { opacity: 1; transform: translateY(0); }
+  .on-air .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    transition: background-color var(--t-sleeve) var(--ease);
+    animation: onair-pulse 1800ms var(--ease) infinite;
+  }
+  @keyframes onair-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.35; transform: scale(0.7); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .on-air .dot { animation: none; }
+  }
 
   /* ---- Main: sleeve, ticker, CTA ------------------------------------- */
   main {
@@ -106,24 +135,24 @@
   /* visualizer — 5 thin bars, bottom-aligned */
   .viz {
     display: flex; gap: 5px;
-    height: 24px;
+    height: 32px;
     align-items: flex-end;
-    margin-top: 10px;
+    margin-top: 12px;
     transition: opacity 800ms var(--ease-quick);
   }
-  .viz.muted { opacity: 0.2; }
+  .viz.muted { opacity: 0.25; }
   .viz .bar {
-    width: 3px;
+    width: 4px;
     background: var(--accent);
     transform-origin: bottom;
-    transform: scaleY(0.4);
+    transform: scaleY(0.35);
     transition: background-color var(--t-sleeve) var(--ease);
     will-change: transform;
   }
 
   /* ticker line under sleeve */
   .ticker {
-    font-family: "JetBrains Mono", monospace;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 13px;
     color: var(--muted);
     letter-spacing: 0;
@@ -136,7 +165,7 @@
     background: none; border: 0; padding: 0; margin: 0;
     color: var(--muted);
     font: inherit;
-    font-family: "JetBrains Mono", monospace;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     cursor: pointer;
     transition: color var(--t-quick) var(--ease-quick), transform 80ms var(--ease-quick);
   }
@@ -281,7 +310,7 @@
 
   /* status dot for connection */
   .status-line {
-    font-family: "JetBrains Mono", monospace;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 11px;
     color: var(--very-muted);
     letter-spacing: 0;
@@ -297,6 +326,9 @@
   <div class="app" aria-live="polite">
     <header>
       <span class="wordmark">HODL FM</span>
+      <span class="on-air" id="on-air" aria-hidden="true">
+        <span class="dot"></span><span>ON AIR</span>
+      </span>
     </header>
 
     <main>
@@ -358,7 +390,7 @@ const STATES = [
     id: "falling", min: -Infinity, max: -1.5,
     label: "FALLING",
     track: "Cold Lavender, No. 1",
-    bg: "#E2DDE4", accent: "#3E3548",
+    bg: "#D6CFDC", accent: "#3E3548", sleeve: "#E5DFE9",
     // synthesis recipe — slow, low, sparse
     synth: { baseHz: 110, intervals: [0, 3, 7, 10], rateMs: 5200, pulseLen: 3.6, lfoHz: 0.08, filterHz: 480, gain: 0.18 }
   },
@@ -366,28 +398,28 @@ const STATES = [
     id: "cooling", min: -1.5, max: -0.3,
     label: "COOLING",
     track: "Pale Clay Drift",
-    bg: "#EDE4DD", accent: "#7A4A3A",
+    bg: "#E8DAD0", accent: "#7A4A3A", sleeve: "#F0E5DC",
     synth: { baseHz: 130, intervals: [0, 3, 7], rateMs: 4400, pulseLen: 3.0, lfoHz: 0.12, filterHz: 700, gain: 0.18 }
   },
   {
     id: "still", min: -0.3, max: 0.3,
     label: "STILL",
     track: "Fog Study, No. 3",
-    bg: "#EDE8E1", accent: "#6B6460",
+    bg: "#EDE8E1", accent: "#6B6460", sleeve: "#F5F2EE",
     synth: { baseHz: 146.83, intervals: [0, 5, 7], rateMs: 4000, pulseLen: 2.6, lfoHz: 0.18, filterHz: 900, gain: 0.16 }
   },
   {
     id: "rising", min: 0.3, max: 1.5,
     label: "RISING",
     track: "Faded Moss",
-    bg: "#E3EDE0", accent: "#4A7050",
+    bg: "#D8E5D2", accent: "#4A7050", sleeve: "#E6EFE0",
     synth: { baseHz: 164.81, intervals: [0, 4, 7], rateMs: 3400, pulseLen: 2.4, lfoHz: 0.24, filterHz: 1200, gain: 0.18 }
   },
   {
     id: "surge", min: 1.5, max: Infinity,
     label: "SURGE",
     track: "Sage Bloom",
-    bg: "#D4E6D0", accent: "#2E5C35",
+    bg: "#BDD8B6", accent: "#2E5C35", sleeve: "#D2E4CB",
     synth: { baseHz: 196.0, intervals: [0, 4, 7, 11], rateMs: 2800, pulseLen: 2.2, lfoHz: 0.32, filterHz: 1600, gain: 0.20 }
   }
 ];
@@ -521,12 +553,13 @@ class Visualizer {
   _tick() {
     if (!this.alive) return;
     this.bars.forEach((bar) => {
-      const h = 0.3 + Math.random() * 0.9;
-      const dur = 600 + Math.random() * 300;
+      // больше амплитуды: 0.25–1.0 вместо 0.3–0.85
+      const h = 0.25 + Math.random() * 0.75;
+      const dur = 550 + Math.random() * 320;
       bar.style.transition = `transform ${dur}ms cubic-bezier(0.32, 0.72, 0, 1)`;
       bar.style.transform = `scaleY(${h})`;
     });
-    setTimeout(() => this._tick(), 700);
+    setTimeout(() => this._tick(), 650);
   }
 }
 
@@ -544,7 +577,8 @@ const dom = {
   tapHint: $("tap-hint"),
   status: $("status"),
   welcome: $("welcome"),
-  welcomePlay: $("welcome-play")
+  welcomePlay: $("welcome-play"),
+  onAir: $("on-air")
 };
 const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA"; // TODO: real ref after legal check
 dom.cta.href = CTA_URL;
@@ -561,16 +595,63 @@ function classifyState(pct) {
   return STATES.find(s => pct >= s.min && pct < s.max) || STATES[2];
 }
 
-function applyVisualState(state) {
-  // background goes through anchor — done in two phases via CSS variables
-  // Phase 1: to anchor
-  document.documentElement.style.setProperty("--bg", "var(--anchor)");
-  document.documentElement.style.setProperty("--accent", state.accent);
-  setTimeout(() => {
-    document.documentElement.style.setProperty("--bg", state.bg);
-  }, 1800);  // halfway through 4000ms transition
+/* ---- Color interpolation ------------------------------------------------
+   Плавная интерполяция фона между соседними состояниями. Цвет «скользит» по
+   цене внутри диапазона, а не переключается ступенями. Старт и конец ряда
+   (FALLING < -1.5%, SURGE > 1.5%) фиксируются.
+-------------------------------------------------------------------------- */
+function hexToRgb(h) {
+  const m = h.replace("#", "");
+  return [parseInt(m.slice(0,2),16), parseInt(m.slice(2,4),16), parseInt(m.slice(4,6),16)];
+}
+function rgbToHex(r,g,b) {
+  const c = (n) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, "0");
+  return "#" + c(r) + c(g) + c(b);
+}
+function lerpColor(a, b, t) {
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return rgbToHex(A[0] + (B[0]-A[0])*t, A[1] + (B[1]-A[1])*t, A[2] + (B[2]-A[2])*t);
+}
 
-  // swap state name with cross-fade
+// Опорные точки для интерполяции: центры диапазонов каждого состояния
+function stateAnchorPct(s) {
+  if (s.min === -Infinity) return -2.5; // FALLING anchor
+  if (s.max === Infinity)  return  2.5; // SURGE anchor
+  return (s.min + s.max) / 2;
+}
+
+function interpolatedColors(pct) {
+  const anchors = STATES.map(s => ({ pct: stateAnchorPct(s), bg: s.bg, accent: s.accent, sleeve: s.sleeve }));
+  // Находим двух соседей
+  if (pct <= anchors[0].pct) return { bg: anchors[0].bg, accent: anchors[0].accent, sleeve: anchors[0].sleeve };
+  if (pct >= anchors[anchors.length-1].pct) {
+    const a = anchors[anchors.length-1];
+    return { bg: a.bg, accent: a.accent, sleeve: a.sleeve };
+  }
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const a = anchors[i], b = anchors[i+1];
+    if (pct >= a.pct && pct <= b.pct) {
+      const t = (pct - a.pct) / (b.pct - a.pct);
+      return {
+        bg:     lerpColor(a.bg,     b.bg,     t),
+        accent: lerpColor(a.accent, b.accent, t),
+        sleeve: lerpColor(a.sleeve, b.sleeve, t)
+      };
+    }
+  }
+  return { bg: anchors[2].bg, accent: anchors[2].accent, sleeve: anchors[2].sleeve };
+}
+
+function applyContinuousColor(pct) {
+  const c = interpolatedColors(pct);
+  const root = document.documentElement.style;
+  root.setProperty("--bg", c.bg);
+  root.setProperty("--accent", c.accent);
+  root.setProperty("--sleeve", c.sleeve);
+}
+
+function applyVisualState(state) {
+  // swap state name with cross-fade (текст меняется дискретно при переходе границы)
   dom.stateName.classList.add("swap");
   dom.trackName.classList.add("swap");
   setTimeout(() => {
@@ -625,6 +706,8 @@ async function tick() {
     online = true;
     setStatus("");
     updateTicker(price, pct);
+    // Непрерывный цвет скользит по цене каждый tick — даже внутри одного состояния
+    applyContinuousColor(pct);
     const state = classifyState(pct);
     await setMarketState(state);
   } catch (e) {
@@ -651,6 +734,7 @@ async function begin() {
   started = true;
   dom.tapHint.classList.add("hidden");
   dom.welcome.classList.add("hidden");
+  dom.onAir.classList.add("live");
   // отписываемся от всех gesture-листенеров, чтобы без утечек
   gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
   try {
@@ -661,6 +745,7 @@ async function begin() {
   } catch (e) {
     console.warn("audio start failed", e);
     started = false;
+    dom.onAir.classList.remove("live");
     dom.tapHint.classList.remove("hidden");
     dom.welcome.classList.remove("hidden");
   }
@@ -697,6 +782,7 @@ async function tryAutoStart() {
     if (audio.ctx && audio.ctx.state === "running") {
       started = true;
       dom.tapHint.classList.add("hidden");
+      dom.onAir.classList.add("live");
       gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
       if (lastState) await audio.setState(lastState.synth);
     }
@@ -735,7 +821,8 @@ lastState = stillState;
   // иначе welcome уже виден по дефолту, tapHint остаётся hidden
 }
 tick();
-setInterval(tick, 60_000);
+// 15с — частый опрос для ¨живого¨ фона. CoinGecko free допускает ~30 req/min, мы делаем 4
+setInterval(tick, 15_000);
 tryAutoStart();
 </script>
 </body>
