@@ -641,6 +641,10 @@ class AmbientVoice {
    Проигрывает один луп в loop=true режиме через BufferSource → lowpass → master.
    Одноразовый «старт», фейды идут по master.gain — идентичный API с AmbientVoice.
 -------------------------------------------------------------------------- */
+/* SampleVoice — «double-layer» playback:
+   в лупах holizna есть фразовые «вдохи» (паузы ~−6–9 dB) каждые ~10–20с,
+   поэтому запускаем две копии одного лупа со сдвигом duration/2.
+   Пока один в паузе — другой в активной фразе. Сумма = плотное полотно без «всплесков». */
 class SampleVoice {
   constructor(ctx, dest, buffer, params) {
     this.ctx = ctx;
@@ -651,30 +655,53 @@ class SampleVoice {
     this.filter.frequency.value = (params && params.filterHz) || 4000;
     this.filter.Q.value = 0.4;
     this.master.connect(this.filter).connect(dest);
-    this.src = ctx.createBufferSource();
-    this.src.buffer = buffer;
-    this.src.loop = true;
-    if (params && params.rate) this.src.playbackRate.value = params.rate;
-    this.src.connect(this.master);
+
+    const rate = (params && params.rate) || 1.0;
+
+    // Первая копия — играет с начала.
+    this.srcA = ctx.createBufferSource();
+    this.srcA.buffer = buffer;
+    this.srcA.loop = true;
+    this.srcA.playbackRate.value = rate;
+    this.gainA = ctx.createGain();
+    this.gainA.gain.value = 0.6; // 0.6 + 0.6 = 1.2 → с учётом «дыхания» реальный RMS ≈ 1.0
+    this.srcA.connect(this.gainA).connect(this.master);
+
+    // Вторая копия — со сдвигом duration/2 (паузы взаимно компенсируются).
+    this.srcB = ctx.createBufferSource();
+    this.srcB.buffer = buffer;
+    this.srcB.loop = true;
+    this.srcB.playbackRate.value = rate;
+    this.gainB = ctx.createGain();
+    this.gainB.gain.value = 0.6;
+    this.srcB.connect(this.gainB).connect(this.master);
+
+    this.bufferDuration = buffer.duration;
     this.peak = (params && params.gain) || 0.85;
     this.alive = true;
   }
   start() {
-    try { this.src.start(); } catch (_) {}
+    const t0 = this.ctx.currentTime;
+    const offsetB = this.bufferDuration / 2;
+    try { this.srcA.start(t0, 0); } catch (_) {}
+    try { this.srcB.start(t0, offsetB); } catch (_) {}
   }
   setLevel(v, rampMs) {
     const t0 = this.ctx.currentTime;
     const ramp = (rampMs || 4000) / 1000;
     this.master.gain.cancelScheduledValues(t0);
-    // линейный ramp до v * peak (нормализуем громкость сэмплов)
     this.master.gain.linearRampToValueAtTime(v * this.peak, t0 + ramp);
   }
   stop(rampMs) {
     this.alive = false;
     this.setLevel(0, rampMs);
     setTimeout(() => {
-      try { this.src.stop(); } catch (_) {}
-      try { this.src.disconnect(); } catch (_) {}
+      try { this.srcA.stop(); } catch (_) {}
+      try { this.srcB.stop(); } catch (_) {}
+      try { this.srcA.disconnect(); } catch (_) {}
+      try { this.srcB.disconnect(); } catch (_) {}
+      try { this.gainA.disconnect(); } catch (_) {}
+      try { this.gainB.disconnect(); } catch (_) {}
       try { this.master.disconnect(); } catch (_) {}
       try { this.filter.disconnect(); } catch (_) {}
     }, (rampMs || 4000) + 200);
