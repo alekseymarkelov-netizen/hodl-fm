@@ -1,14 +1,16 @@
 # Audio credits
 
-All loops by [holizna](https://freesound.org/people/holizna/) on Freesound.
-License: **CC0 1.0 Universal (Public Domain Dedication)** — no attribution required, but appreciated.
+All five drone loops are **synthetic textures generated in-house** with `ffmpeg lavfi`.
+No third-party samples are used. Each loop is a sum of 3–5 detuned sine waves
+through a lowpass filter, normalized to −18 LUFS for uniform loudness.
 
-| File | Source | Original |
-|------|--------|----------|
-| falling.ogg | [629174](https://freesound.org/people/holizna/sounds/629174/) | Lofi Piano Loop 80 BPM(2) |
-| cooling.ogg | [629170](https://freesound.org/people/holizna/sounds/629170/) | Chill Lofi Epiano Loop 80 BPM |
-| still.ogg   | [629173](https://freesound.org/people/holizna/sounds/629173/) | Lofi Piano Loop Cmaj 70 BPM |
-| rising.ogg  | [629171](https://freesound.org/people/holizna/sounds/629171/) | Lofi Piano loop Gmaj 90 BPM |
-| surge.ogg   | [629172](https://freesound.org/people/holizna/sounds/629172/) | Lofi Piano Loop With Vibes 88 BPM |
+| State    | Fundamental | Layers | LPF cutoff |
+|----------|-------------|--------|------------|
+| FALLING  | C2 (65.41 Hz)  | 3 | 1400 Hz |
+| COOLING  | E2 (82.41 Hz)  | 4 | 1800 Hz |
+| STILL    | G2 (98.00 Hz)  | 4 | 2400 Hz |
+| RISING   | C3 (130.81 Hz) | 4 | 3200 Hz |
+| SURGE    | E3 (164.81 Hz) | 5 | 4500 Hz |
 
-Originals are 48kHz/16bit MP3 (128kbps); recoded to OGG Vorbis q1 (~80kbps) and trimmed where applicable to keep total payload <1 MB.
+Each loop is 24 seconds long, 48 kHz / stereo / OGG Vorbis q4. License: public domain
+(generated, no third-party rights involved).
