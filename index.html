@@ -280,12 +280,39 @@
     width: 28px; height: 28px;
     fill: var(--ink);
     margin-left: 4px; /* оптическое центрирование треугольника */
-    transition: fill 220ms var(--ease-quick);
+    transition: fill 220ms var(--ease-quick), opacity 200ms var(--ease-quick);
+  }
+  /* Состояние «загружаем»: треугольник исчезает, появляется спиннер */
+  .welcome-play.loading {
+    animation: none;
+    cursor: progress;
+    pointer-events: none;
+  }
+  .welcome-play.loading svg { opacity: 0; }
+  .welcome-play .spinner {
+    position: absolute;
+    width: 28px; height: 28px;
+    border: 2px solid var(--accent);
+    border-top-color: transparent;
+    border-radius: 50%;
+    opacity: 0;
+    animation: welcomeSpin 900ms linear infinite;
+    transition: opacity 200ms var(--ease-quick);
+  }
+  .welcome-play.loading .spinner { opacity: 0.7; }
+  .welcome-play { position: relative; }
+  @keyframes welcomeSpin {
+    to { transform: rotate(360deg); }
   }
   @keyframes welcomePulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(122, 132, 114, 0.0); }
     50% { box-shadow: 0 0 0 14px rgba(122, 132, 114, 0.08); }
   }
+
+  .welcome-foot {
+    transition: opacity 200ms var(--ease-quick);
+  }
+  .welcome-foot.fade { opacity: 0.5; }
   .welcome-foot {
     font-family: "DM Sans", sans-serif;
     font-size: 12px;
@@ -294,6 +321,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .welcome-play { animation: none; }
+    .welcome-play .spinner { animation: none; opacity: 0.7; }
   }
 
   /* ---- Tap-hint (фаллбэк, если overlay не показывается) -------- */
@@ -365,8 +393,9 @@
         <p class="welcome-sub">Five textures for five market moods. Plays in the background while you do something else. No alerts, no charts.</p>
         <button class="welcome-play" id="welcome-play" aria-label="Start audio">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.5v17l15-8.5z"/></svg>
+          <span class="spinner" aria-hidden="true"></span>
         </button>
-        <div class="welcome-foot">tap to start · sound on</div>
+        <div class="welcome-foot" id="welcome-foot">tap to start · sound on</div>
       </div>
     </div>
 
@@ -599,29 +628,53 @@ class AmbientEngine {
   async setState(state) {
     await this.ensureCtx();
     const fadeMs = this.voice ? 3000 : 1500;
-    let newVoice = null;
-    // 1) Пробуем сэмпл. Если не получилось — fallback на синтез.
-    if (state.loop) {
-      try {
-        const buf = await this._loadBuffer(state.loop);
-        newVoice = new SampleVoice(this.ctx, this.outGain, buf, state.sample);
-        newVoice.start();
-      } catch (e) {
-        console.warn("sample load failed, falling back to synth:", state.id, e);
-        newVoice = null;
-      }
+    this._setStateSeq = (this._setStateSeq || 0) + 1;
+    const seq = this._setStateSeq;
+
+    // Если буфер уже в кэше — сразу сэмпл, без синтеза-прогрева.
+    if (state.loop && this.bufferCache.has(state.loop)) {
+      const buf = this.bufferCache.get(state.loop);
+      const sample = new SampleVoice(this.ctx, this.outGain, buf, state.sample);
+      sample.start();
+      sample.setLevel(0, 0);
+      sample.setLevel(1.0, fadeMs);
+      if (this.voice) this.voice.stop(fadeMs);
+      this.voice = sample;
+      this._notifyLoading(false);
+      return;
     }
-    if (!newVoice) {
-      newVoice = new AmbientVoice(this.ctx, this.outGain);
-      newVoice.start(state.synth);
-    }
-    newVoice.setLevel(0, 0);
-    newVoice.setLevel(1.0, fadeMs);
-    if (this.voice) {
-      this.voice.stop(fadeMs);
-    }
-    this.voice = newVoice;
+
+    // Иначе: 1) Синтез-прогрев моментально и 2) в фоне пытаемся подменить на сэмпл.
+    const synthVoice = new AmbientVoice(this.ctx, this.outGain);
+    synthVoice.start(state.synth);
+    synthVoice.setLevel(0, 0);
+    synthVoice.setLevel(1.0, fadeMs);
+    if (this.voice) this.voice.stop(fadeMs);
+    this.voice = synthVoice;
+
+    if (!state.loop) { this._notifyLoading(false); return; }
+
+    this._notifyLoading(true);
+    this._loadBuffer(state.loop).then((buf) => {
+      // Если за это время состояние сменилось или voice уже другой — выходим.
+      if (seq !== this._setStateSeq) { this._notifyLoading(false); return; }
+      if (this.voice !== synthVoice) { this._notifyLoading(false); return; }
+      // Fade synth → sample за 2с (короче чем первичный фейд, чтобы «подмена» была слышна)
+      const swapMs = 2000;
+      const sample = new SampleVoice(this.ctx, this.outGain, buf, state.sample);
+      sample.start();
+      sample.setLevel(0, 0);
+      sample.setLevel(1.0, swapMs);
+      synthVoice.stop(swapMs);
+      this.voice = sample;
+      this._notifyLoading(false);
+    }).catch((e) => {
+      console.warn("sample load failed, staying on synth:", state.id, e);
+      this._notifyLoading(false);
+    });
   }
+  onLoadingChange(cb) { this._onLoading = cb; }
+  _notifyLoading(v) { if (this._onLoading) this._onLoading(v); }
   setMuted(m) {
     this.muted = m;
     if (!this.outGain) return;
@@ -666,12 +719,39 @@ const dom = {
   status: $("status"),
   welcome: $("welcome"),
   welcomePlay: $("welcome-play"),
+  welcomeFoot: $("welcome-foot"),
   onAir: $("on-air")
 };
 const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA"; // TODO: real ref after legal check
 dom.cta.href = CTA_URL;
 
 const audio = new AmbientEngine();
+
+/* ---- UI loading indicator ----------------------------------------------
+   Показываем во время fetch+decode сэмплов. Буфер still.ogg начинаем
+   подгружать сразу (eagerly), но без AudioContext (файл в кэше браузера).
+-------------------------------------------------------------------------- */
+async function eagerPrefetch(url) {
+  // До создания AudioContext мы не можем декодировать, но файл
+  // ляжет в HTTP-кэш браузера — его повторный fetch в энджине будет мгновенным.
+  try { await fetch(url, { cache: "force-cache" }); } catch (_) {}
+}
+eagerPrefetch("audio/still.ogg");
+
+audio.onLoadingChange((loading) => {
+  if (!dom.welcome.classList.contains("hidden")) {
+    // Оверлей видим — показываем спиннер на кнопке
+    dom.welcomePlay.classList.toggle("loading", loading);
+    if (dom.welcomeFoot) {
+      dom.welcomeFoot.textContent = loading ? "loading lo-fi loops…" : "tap to start · sound on";
+      dom.welcomeFoot.classList.toggle("fade", loading);
+    }
+  } else {
+    // Оверлей уже закрыт — тихо показываем в status-line
+    if (loading) dom.status.textContent = "loading texture";
+    else if (dom.status.textContent === "loading texture") dom.status.textContent = "";
+  }
+});
 const viz = new Visualizer(dom.viz);
 
 /* ---- State management --------------------------------------------------- */
