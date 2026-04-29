@@ -1,12 +1,33 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>HODL FM — фоновое чувство рынка</title>
-<meta name="description" content="Фоновая музыка, меняющаяся по тренду биткоина. Не алёрт — ambient awareness. Made by Siberia Ventures." />
-<meta property="og:title" content="HODL FM" />
-<meta property="og:description" content="Фоновое чувство крипто-рынка. Без алёртов." />
+<title>HODL FM — ambient awareness for crypto</title>
+<meta name="description" content="Background music that follows bitcoin. The whole market becomes a feeling — calm when it's calm, warm when it rises, cold when it falls. No alerts. Just air." />
+<meta name="keywords" content="bitcoin, crypto, ambient, generative music, market sentiment, BTC tracker, lo-fi crypto, mood, hodl, radio" />
+<meta name="author" content="Siberia Ventures" />
+<link rel="canonical" href="https://hodl-fm.siberia.fund/" />
+
+<!-- Open Graph (Facebook, LinkedIn, Telegram, iMessage, Slack) -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="HODL FM" />
+<meta property="og:title" content="HODL FM — ambient awareness for crypto" />
+<meta property="og:description" content="Background music that follows the market. Not alerts. Just feeling." />
+<meta property="og:url" content="https://hodl-fm.siberia.fund/" />
+<meta property="og:image" content="https://hodl-fm.siberia.fund/og-preview.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="HODL FM — ambient awareness for crypto" />
+<meta property="og:locale" content="en_US" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="HODL FM — ambient awareness for crypto" />
+<meta name="twitter:description" content="Background music that follows the market. Not alerts. Just feeling." />
+<meta name="twitter:image" content="https://hodl-fm.siberia.fund/og-preview.jpg" />
+<meta name="twitter:image:alt" content="HODL FM — ambient awareness for crypto" />
+
 <meta name="theme-color" content="#EDE8E1" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EDE8E1'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%237A8472'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -63,18 +84,18 @@
 
   /* ---- Header --------------------------------------------------------- */
   header {
-    font-size: 13px;
-    color: var(--very-muted);
+    font-size: 16px;
+    color: var(--muted);
     letter-spacing: 0.02em;
-    display: flex; align-items: center; gap: 14px;
+    display: flex; align-items: center; gap: 18px;
   }
-  .wordmark { font-weight: 500; letter-spacing: 0.14em; }
+  .wordmark { font-weight: 500; letter-spacing: 0.16em; font-size: 17px; color: var(--ink); }
 
   .on-air {
-    display: inline-flex; align-items: center; gap: 7px;
+    display: inline-flex; align-items: center; gap: 9px;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 10px;
-    letter-spacing: 0.18em;
+    font-size: 13px;
+    letter-spacing: 0.20em;
     color: var(--muted);
     text-transform: uppercase;
     opacity: 0;
@@ -84,7 +105,7 @@
   }
   .on-air.live { opacity: 1; transform: translateY(0); }
   .on-air .dot {
-    width: 6px; height: 6px; border-radius: 50%;
+    width: 8px; height: 8px; border-radius: 50%;
     background: var(--accent);
     transition: background-color var(--t-sleeve) var(--ease);
     animation: onair-pulse 1800ms var(--ease) infinite;
@@ -278,7 +299,8 @@
 
   /* ---- Footer --------------------------------------------------------- */
   footer {
-    display: flex; justify-content: flex-end;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 24px;
     font-size: 11px;
     color: var(--very-muted);
   }
@@ -288,6 +310,57 @@
     transition: color var(--t-quick) var(--ease-quick);
   }
   footer a:hover { color: var(--accent); }
+  .footer-credit { letter-spacing: 0.02em; }
+
+  /* Share buttons — лаконичные иконки, слева от footer-credit */
+  .share {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px;
+    color: var(--very-muted);
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+  }
+  .share-label { margin-right: 6px; }
+  .share a {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    color: var(--muted);
+    transition: color var(--t-quick) var(--ease-quick), background-color var(--t-quick) var(--ease-quick), transform var(--t-quick) var(--ease-quick);
+    border: 1px solid transparent;
+  }
+  .share a svg { width: 14px; height: 14px; display: block; }
+  .share a:hover {
+    color: var(--accent);
+    background: rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+  }
+  .share button.share-copy {
+    background: none; border: 1px solid transparent; padding: 0; cursor: pointer;
+    width: 28px; height: 28px; border-radius: 50%;
+    color: var(--muted);
+    display: inline-flex; align-items: center; justify-content: center;
+    font: inherit;
+    transition: color var(--t-quick) var(--ease-quick), background-color var(--t-quick) var(--ease-quick), transform var(--t-quick) var(--ease-quick);
+  }
+  .share button.share-copy svg { width: 14px; height: 14px; display: block; }
+  .share button.share-copy:hover {
+    color: var(--accent);
+    background: rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+  }
+  .share button.share-copy.copied { color: var(--accent); }
+  .share-copied-tip {
+    position: absolute; transform: translate(-50%, -32px);
+    font-size: 10px; letter-spacing: 0.15em;
+    color: var(--accent); opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms var(--ease-quick);
+  }
+  .share-copied-tip.show { opacity: 1; }
+  @media (max-width: 520px) {
+    .share-label { display: none; }
+  }
 
   /* ---- Welcome overlay (первый визит) -------------------------- */
   .welcome {
@@ -492,7 +565,26 @@
     </div>
 
     <footer>
-      <span>made by <a href="https://siberia.fund" target="_blank" rel="noopener">Siberia Ventures</a></span>
+      <div class="share" aria-label="Share HODL FM">
+        <span class="share-label">share</span>
+        <a id="share-twitter" href="#" target="_blank" rel="noopener" aria-label="Share on X (Twitter)" title="Share on X">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        </a>
+        <a id="share-telegram" href="#" target="_blank" rel="noopener" aria-label="Share on Telegram" title="Share on Telegram">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg>
+        </a>
+        <a id="share-facebook" href="#" target="_blank" rel="noopener" aria-label="Share on Facebook" title="Share on Facebook">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>
+        </a>
+        <a id="share-linkedin" href="#" target="_blank" rel="noopener" aria-label="Share on LinkedIn" title="Share on LinkedIn">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8.34 18.34V9.67H5.67v8.67zM7 8.5a1.55 1.55 0 1 0 0-3.1 1.55 1.55 0 0 0 0 3.1zm11.34 9.84v-4.83c0-2.59-1.4-3.79-3.27-3.79a2.83 2.83 0 0 0-2.56 1.41h-.04V9.67h-2.56c.03.72 0 8.67 0 8.67h2.56v-4.84c0-.23.02-.46.09-.62.18-.46.6-.93 1.31-.93.92 0 1.29.7 1.29 1.73v4.66z"/></svg>
+        </a>
+        <button class="share-copy" id="share-copy" aria-label="Copy link" title="Copy link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07L11 5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07L13 19"/></svg>
+          <span class="share-copied-tip" id="share-copied-tip">copied</span>
+        </button>
+      </div>
+      <span class="footer-credit">made by <a href="https://siberia.fund" target="_blank" rel="noopener">Siberia Ventures</a></span>
     </footer>
   </div>
 
@@ -1215,6 +1307,58 @@ tick();
 // 15с — частый опрос для «живого» фона. Binance Vision: лимиты публичные, ~6000 weight/min.
 setInterval(tick, 15_000);
 tryAutoStart();
+
+/* ---- Share buttons -------------------------------------------------------
+   Один источник правды — SHARE_URL/SHARE_TEXT, переиспользуется всеми бэкс-линками.
+   Нажатие на share-иконку НЕ должно вызывать gestureHandler/mute toggle — stopPropagation.
+-------------------------------------------------------------------------- */
+(function setupShare() {
+  const SHARE_URL = "https://hodl-fm.siberia.fund/";
+  const SHARE_TEXT = "HODL FM — ambient awareness for crypto. Background music that follows the market.";
+  const u = encodeURIComponent(SHARE_URL);
+  const t = encodeURIComponent(SHARE_TEXT);
+
+  const links = {
+    "share-twitter":  `https://twitter.com/intent/tweet?url=${u}&text=${t}`,
+    "share-telegram": `https://t.me/share/url?url=${u}&text=${t}`,
+    "share-facebook": `https://www.facebook.com/sharer/sharer.php?u=${u}`,
+    "share-linkedin": `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
+  };
+  for (const [id, href] of Object.entries(links)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.href = href;
+    el.addEventListener("click", (e) => e.stopPropagation(), true);
+  }
+
+  const copyBtn = document.getElementById("share-copy");
+  const tip = document.getElementById("share-copied-tip");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(SHARE_URL);
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = SHARE_URL;
+          ta.style.position = "fixed"; ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+        }
+        copyBtn.classList.add("copied");
+        if (tip) tip.classList.add("show");
+        setTimeout(() => {
+          copyBtn.classList.remove("copied");
+          if (tip) tip.classList.remove("show");
+        }, 1600);
+      } catch (_) { /* тихо */ }
+    }, true);
+  }
+})();
 </script>
 </body>
 </html>
