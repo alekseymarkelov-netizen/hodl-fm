@@ -959,9 +959,13 @@ class AmbientEngine {
     this.applyMix(this.lastMixPct == null ? 0 : this.lastMixPct, 1500);
   }
 
-  /* equal-power weights: для любого pct находим пару соседних anchor'ов,
-     вычисляем t∈[0,1] и веса cos(t·π/2)² + sin(t·π/2)² = 1.
-     Остальные воисы — в ноль. */
+  /* Plateau equal-power crossfade.
+     Проблема: при чистом equal-power (cos/sin) два соседних дрона звучат одновременно
+     на большей части переходной зоны. При близких тональных центрах (COOLING↔STILL)
+     это воспринимается как "накладка".
+     Решение: в крайних 30% переходной зоны жёстко играет один голос (plateau),
+     в средних 40% — обычный cos/sin кроссфейд.
+     Сумма квадратов весов всегда = 1 (equal-power сохранён). */
   applyMix(pct, rampMs) {
     this.lastMixPct = pct;
     if (!this.continuous || !this.mixVoices) return;
@@ -983,9 +987,13 @@ class AmbientEngine {
       }
     }
 
-    // equal-power
-    const gA = Math.cos(t * Math.PI / 2);
-    const gB = Math.sin(t * Math.PI / 2);
+    // Plateau equal-power: сжимаем реальный кроссфейд в окно t∈[0.3, 0.7]
+    let xfadeT;
+    if (t <= 0.3)      xfadeT = 0;
+    else if (t >= 0.7) xfadeT = 1;
+    else               xfadeT = (t - 0.3) / 0.4;
+    const gA = Math.cos(xfadeT * Math.PI / 2);
+    const gB = Math.sin(xfadeT * Math.PI / 2);
 
     for (let i = 0; i < arr.length; i++) {
       let target = 0;
