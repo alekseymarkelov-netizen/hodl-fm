@@ -641,30 +641,78 @@ class AmbientVoice {
    Проигрывает один луп в loop=true режиме через BufferSource → lowpass → master.
    Одноразовый «старт», фейды идут по master.gain — идентичный API с AmbientVoice.
 -------------------------------------------------------------------------- */
-/* SampleVoice — простой looping playback длинного drone-лупа.
-   Дроны синтетические (сумма синусов) — лишены фразовости и «вдохов»,
-   double-layer не нужен. */
+/* SampleVoice — бесшовный луп с crossfade-переходом между итерациями.
+   Вместо одного BufferSource с loop=true (который даёт слышимый стык
+   на фразовых инструментах вроде фортепиано/гитары) запускаем
+   очередь BufferSource'ов: каждый следующий стартует за XFADE_S
+   до конца предыдущего и плавно выравнивает гейн. */
+const XFADE_S = 2.5; // длительность перехвата между луп-итерациями
+
 class SampleVoice {
   constructor(ctx, dest, buffer, params) {
     this.ctx = ctx;
+    this.buffer = buffer;
+    this.params = params || {};
     this.master = ctx.createGain();
     this.master.gain.value = 0;
     this.filter = ctx.createBiquadFilter();
     this.filter.type = "lowpass";
-    this.filter.frequency.value = (params && params.filterHz) || 4000;
+    this.filter.frequency.value = this.params.filterHz || 4000;
     this.filter.Q.value = 0.4;
     this.master.connect(this.filter).connect(dest);
 
-    this.src = ctx.createBufferSource();
-    this.src.buffer = buffer;
-    this.src.loop = true;
-    if (params && params.rate) this.src.playbackRate.value = params.rate;
-    this.src.connect(this.master);
-    this.peak = (params && params.gain) || 0.85;
+    this.peak = this.params.gain || 0.85;
+    this.rate = this.params.rate || 1.0;
+    // Эффективная длительность буфера с учётом playbackRate
+    this.dur = buffer.duration / this.rate;
     this.alive = true;
+    this.timer = null;
+    this.activeSources = new Set();
+  }
+  // Создаёт один экземпляр BufferSource с fade-in/fade-out на концах.
+  // На первом проходе fade-in пропускаем (входящий стык берёт общий master fade).
+  _spawnIteration(startAt, isFirst) {
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = this.buffer;
+    src.playbackRate.value = this.rate;
+    const g = ctx.createGain();
+    src.connect(g).connect(this.master);
+
+    const dur = this.dur;
+    const xf = Math.min(XFADE_S, dur * 0.4);
+
+    // Fade-in: первые xf секунд подъём с 0 до 1
+    g.gain.setValueAtTime(isFirst ? 1 : 0, startAt);
+    if (!isFirst) g.gain.linearRampToValueAtTime(1, startAt + xf);
+    // Fade-out: последние xf секунд спуск до 0
+    g.gain.setValueAtTime(1, startAt + dur - xf);
+    g.gain.linearRampToValueAtTime(0, startAt + dur);
+
+    try { src.start(startAt); } catch (_) {}
+    try { src.stop(startAt + dur + 0.05); } catch (_) {}
+
+    const entry = { src, gain: g };
+    this.activeSources.add(entry);
+    src.onended = () => {
+      try { src.disconnect(); } catch (_) {}
+      try { g.disconnect(); } catch (_) {}
+      this.activeSources.delete(entry);
+    };
+
+    // Планируем следующую итерацию за xf до конца текущей
+    if (this.alive) {
+      const nextStart = startAt + dur - xf;
+      const ms = Math.max(0, (nextStart - ctx.currentTime - 0.5) * 1000);
+      this.timer = setTimeout(() => {
+        if (this.alive) this._spawnIteration(nextStart, false);
+      }, ms);
+    }
   }
   start() {
-    try { this.src.start(); } catch (_) {}
+    if (!this.alive) return;
+    const t0 = this.ctx.currentTime + 0.05;
+    this._spawnIteration(t0, true);
   }
   setLevel(v, rampMs) {
     const t0 = this.ctx.currentTime;
@@ -674,13 +722,19 @@ class SampleVoice {
   }
   stop(rampMs) {
     this.alive = false;
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
     this.setLevel(0, rampMs);
+    const cleanupDelay = (rampMs || 4000) + 200;
     setTimeout(() => {
-      try { this.src.stop(); } catch (_) {}
-      try { this.src.disconnect(); } catch (_) {}
+      for (const e of this.activeSources) {
+        try { e.src.stop(); } catch (_) {}
+        try { e.src.disconnect(); } catch (_) {}
+        try { e.gain.disconnect(); } catch (_) {}
+      }
+      this.activeSources.clear();
       try { this.master.disconnect(); } catch (_) {}
       try { this.filter.disconnect(); } catch (_) {}
-    }, (rampMs || 4000) + 200);
+    }, cleanupDelay);
   }
 }
 
