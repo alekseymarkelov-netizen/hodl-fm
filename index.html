@@ -1142,6 +1142,21 @@ lastState = stillState;
   }
   // иначе welcome уже виден по дефолту, tapHint остаётся hidden
 }
+// Защита от чужих Service Worker'ов и старых CacheStorage-кешей,
+// которые могли подменять аудио-файлы устаревшими версиями.
+(async () => {
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) await r.unregister();
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (_) { /* тихо */ }
+})();
+
 tick();
 // 15с — частый опрос для «живого» фона. Binance Vision: лимиты публичные, ~6000 weight/min.
 setInterval(tick, 15_000);
