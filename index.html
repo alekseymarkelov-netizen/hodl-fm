@@ -50,7 +50,7 @@
     --accent: #6B6460;
 
     /* timings (concept §5) */
-    --t-bg: 12000ms;       /* длинный fade чтобы цвет всё время «дышал» между tick'ами раз в 15с */
+    --t-bg: 6000ms;        /* fade быстрее догоняет цену между tick'ами раз в 15с */
     --t-sleeve: 8000ms;
     --t-text: 600ms;
     --t-quick: 160ms;
@@ -605,7 +605,7 @@ const STATES = [
     id: "falling", min: -Infinity, max: -1.5,
     label: "FALLING",
     track: "Cold Lavender, No. 1",
-    bg: "#D6CFDC", accent: "#3E3548", sleeve: "#E5DFE9",
+    bg: "#B5A8C8", accent: "#2E2438", sleeve: "#CFC5DC",
     loop: "audio/falling-v3-mixkit.ogg",
     sample: { gain: 1.30, filterHz: 1400, rate: 1.00 },  // C2-drone, глубокий
     // fallback synth recipe — slow, low, sparse
@@ -615,7 +615,7 @@ const STATES = [
     id: "cooling", min: -1.5, max: -0.3,
     label: "COOLING",
     track: "Pale Clay Drift",
-    bg: "#E8DAD0", accent: "#7A4A3A", sleeve: "#F0E5DC",
+    bg: "#E5C4A8", accent: "#6B3A28", sleeve: "#EFD8C2",
     loop: "audio/cooling-v3-mixkit.ogg",
     sample: { gain: 1.30, filterHz: 1800, rate: 1.00 },  // E2-drone
     synth: { baseHz: 130, intervals: [0, 3, 7], rateMs: 4400, pulseLen: 3.0, lfoHz: 0.12, filterHz: 700, gain: 0.18 }
@@ -633,7 +633,7 @@ const STATES = [
     id: "rising", min: 0.3, max: 1.5,
     label: "RISING",
     track: "Faded Moss",
-    bg: "#D8E5D2", accent: "#4A7050", sleeve: "#E6EFE0",
+    bg: "#B5D5A8", accent: "#385C40", sleeve: "#CFE5C2",
     loop: "audio/rising-v3-mixkit.ogg",
     sample: { gain: 1.30, filterHz: 3200, rate: 1.00 },  // C3-drone
     synth: { baseHz: 164.81, intervals: [0, 4, 7], rateMs: 3400, pulseLen: 2.4, lfoHz: 0.24, filterHz: 1200, gain: 0.18 }
@@ -642,7 +642,7 @@ const STATES = [
     id: "surge", min: 1.5, max: Infinity,
     label: "SURGE",
     track: "Sage Bloom",
-    bg: "#BDD8B6", accent: "#2E5C35", sleeve: "#D2E4CB",
+    bg: "#85C088", accent: "#1E4825", sleeve: "#A5D2A8",
     loop: "audio/surge-v3-mixkit.ogg",
     sample: { gain: 1.35, filterHz: 4500, rate: 1.00 },  // E3-drone, яркий
     synth: { baseHz: 196.0, intervals: [0, 4, 7, 11], rateMs: 2800, pulseLen: 2.2, lfoHz: 0.32, filterHz: 1600, gain: 0.20 }
@@ -787,6 +787,10 @@ class AmbientEngine {
     this.targetLevel = 1.15; // мастер слегка приподнят, без агрессии — иначе лимитер «качает»
     this.bufferCache = new Map();   // url → AudioBuffer
     this.fetchPromises = new Map(); // url → Promise<AudioBuffer>
+    // —— Continuous mix state ——
+    this.continuous = false;          // включён ли непрерывный cross-mix
+    this.mixVoices = null;            // [{state, voice, anchor}], по одному на состояние
+    this.lastMixPct = null;
   }
   async ensureCtx() {
     if (this.ctx) return;
@@ -838,7 +842,89 @@ class AmbientEngine {
       this.fetchPromises.delete(url);
     }
   }
+  /* ---- Continuous mix -------------------------------------------------
+     Запускает все 5 SampleVoice одновременно (синхронно по фазе),
+     все на gain=0. applyMix(pct) плавно поднимает два соседних голоса
+     по equal-power law (cos/sin), остальные жёстко в ноль.
+     Производит fallback на старый setState() если буферы ещё не загружены.
+  --------------------------------------------------------------------- */
+  async enableContinuous(states) {
+    await this.ensureCtx();
+    if (this.continuous) return;
+    // Грузим все 5 буферов параллельно (кэш общий, повторных фетчей не будет).
+    let buffers;
+    try {
+      buffers = await Promise.all(states.map(s => this._loadBuffer(s.loop)));
+    } catch (e) {
+      console.warn("continuous mix: buffer load failed, staying on discrete setState", e);
+      return;
+    }
+    // Плавно гасим текущий voice (синтез или одиночный сэмпл)
+    if (this.voice) { this.voice.stop(2000); this.voice = null; }
+
+    // Старт всех 5 воисов одновременно — startTime один и тот же для фазовой когерентности
+    const startTime = this.ctx.currentTime + 0.05;
+    this.mixVoices = states.map((state, i) => {
+      const v = new SampleVoice(this.ctx, this.outGain, buffers[i], state.sample);
+      try { v.src.start(startTime); } catch (_) {}
+      v.alive = true;
+      v.master.gain.setValueAtTime(0, this.ctx.currentTime);
+      const anchor = state.min === -Infinity ? -2.5
+                   : state.max === Infinity  ?  2.5
+                   : (state.min + state.max) / 2;
+      return { state, voice: v, anchor };
+    });
+    this.continuous = true;
+    // Если уже был pct — применим сразу, иначе стартовые веса от STILL
+    this.applyMix(this.lastMixPct == null ? 0 : this.lastMixPct, 1500);
+  }
+
+  /* equal-power weights: для любого pct находим пару соседних anchor'ов,
+     вычисляем t∈[0,1] и веса cos(t·π/2)² + sin(t·π/2)² = 1.
+     Остальные воисы — в ноль. */
+  applyMix(pct, rampMs) {
+    this.lastMixPct = pct;
+    if (!this.continuous || !this.mixVoices) return;
+    const ramp = (rampMs == null ? 8000 : rampMs) / 1000;
+    const t0 = this.ctx.currentTime;
+    const arr = this.mixVoices; // уже отсортированы по anchor (порядок STATES)
+
+    // Находим пару
+    let aIdx = 0, bIdx = 0, t = 0;
+    if (pct <= arr[0].anchor) { aIdx = 0; bIdx = 0; t = 0; }
+    else if (pct >= arr[arr.length - 1].anchor) { aIdx = arr.length - 1; bIdx = arr.length - 1; t = 0; }
+    else {
+      for (let i = 0; i < arr.length - 1; i++) {
+        if (pct >= arr[i].anchor && pct <= arr[i + 1].anchor) {
+          aIdx = i; bIdx = i + 1;
+          t = (pct - arr[i].anchor) / (arr[i + 1].anchor - arr[i].anchor);
+          break;
+        }
+      }
+    }
+
+    // equal-power
+    const gA = Math.cos(t * Math.PI / 2);
+    const gB = Math.sin(t * Math.PI / 2);
+
+    for (let i = 0; i < arr.length; i++) {
+      let target = 0;
+      if (i === aIdx && i === bIdx) target = 1;          // край (всё на одном)
+      else if (i === aIdx) target = gA;
+      else if (i === bIdx) target = gB;
+      // умножаем на peak gain воиса (из sample.gain)
+      const peak = arr[i].voice.peak;
+      const g = arr[i].voice.master.gain;
+      g.cancelScheduledValues(t0);
+      g.linearRampToValueAtTime(target * peak, t0 + ramp);
+    }
+  }
+
   async setState(state) {
+    // Если continuous mix активен — аудио управляется через applyMix(pct).
+    // setState() вызывается из setMarketState() для совместимости API,
+    // но при continuous=true это безопасный no-op.
+    if (this.continuous) return;
     await this.ensureCtx();
     // Первый запуск — короткий fade-in (250мс) чтобы избежать click без ощутимой задержки.
     // Переключения между состояниями — плавнее (3с) для музыкальности.
@@ -984,6 +1070,7 @@ const viz = new Visualizer(dom.viz);
 
 /* ---- State management --------------------------------------------------- */
 let lastState = null;
+let lastPct = null;
 let started = false;
 let online = false;
 
@@ -1129,8 +1216,12 @@ async function tick() {
     online = true;
     setStatus("");
     updateTicker(price, pct);
+    lastPct = pct;
     // Непрерывный цвет скользит по цене каждый tick — даже внутри одного состояния
     applyContinuousColor(pct);
+    // Аудио: continuous cross-mix по тем же anchor'ам, что и цвета.
+    // Рамп 8с чуть короче опроса (15с), чтобы движение было слышным, но не резким.
+    if (started) audio.applyMix(pct, 8000);
     const state = classifyState(pct);
     await setMarketState(state);
   } catch (e) {
@@ -1164,7 +1255,13 @@ async function begin() {
   gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
   try {
     await audio.ensureCtx();
+    // Первый звук — это стартовый setState от текущего состояния (моментальный отклик),
+    // потом в фоне включаем continuous mix (плавный переход на все 5 голосов).
     if (lastState) await audio.setState(lastState);
+    // Неблокирующее включение continuous mix.
+    audio.enableContinuous(STATES).then(() => {
+      if (lastPct != null) audio.applyMix(lastPct, 3000);
+    });
     // помечаем что хотя бы раз запускался успешно — следующий визит попробует без жеста
     try { localStorage.setItem(RETURN_KEY, "1"); } catch (_) {}
   } catch (e) {
