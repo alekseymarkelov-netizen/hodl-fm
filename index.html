@@ -1076,6 +1076,80 @@ audio.onLoadingChange((loading) => {
 });
 const viz = new Visualizer(dom.viz);
 
+/* ---- Analytics ----------------------------------------------------------
+   Отправка GA4 events через gtag.js. Глобальный хелпер track() безопасен
+   даже если gtag заблокирован ad-blocker'ом — никаких ошибок, тихо но-оп.
+-------------------------------------------------------------------------- */
+function track(name, params) {
+  try {
+    if (typeof window.gtag === "function") {
+      window.gtag("event", name, params || {});
+    }
+  } catch (_) { /* тихо */ }
+}
+
+/* ---- Engagement timer ---------------------------------------------------
+   Измеряет время активного прослушивания (включёно и не muted) и
+   выстреливает milestone-events: 30s, 2m, 5m, 15m, 30m. Каждый по одному
+   разу за сессию — это основные retention-метрики для продукта.
+   При переходе вкладки в background — ставим на паузу (Page Visibility API).
+-------------------------------------------------------------------------- */
+const ENGAGEMENT_MILESTONES = [
+  { ms: 30_000, label: "30s" },
+  { ms: 120_000, label: "2m" },
+  { ms: 300_000, label: "5m" },
+  { ms: 900_000, label: "15m" },
+  { ms: 1_800_000, label: "30m" },
+];
+let engagementMs = 0;        // накопленное активное время
+let engagementTickStart = 0; // performance.now() последнего возобновления
+let engagementInterval = null;
+let engagementFired = new Set();
+
+function _flushEngagement() {
+  if (engagementTickStart > 0) {
+    engagementMs += performance.now() - engagementTickStart;
+    engagementTickStart = performance.now();
+  }
+  for (const m of ENGAGEMENT_MILESTONES) {
+    if (engagementMs >= m.ms && !engagementFired.has(m.label)) {
+      engagementFired.add(m.label);
+      track("audio_engagement_" + m.label, {
+        seconds: Math.round(engagementMs / 1000),
+        state_id: lastState ? lastState.id : null,
+      });
+    }
+  }
+}
+function startEngagementTimer() {
+  if (engagementInterval) return;
+  engagementTickStart = performance.now();
+  engagementInterval = setInterval(_flushEngagement, 5_000);
+}
+function pauseEngagementTimer() {
+  if (engagementTickStart > 0) {
+    engagementMs += performance.now() - engagementTickStart;
+    engagementTickStart = 0;
+  }
+}
+function resumeEngagementTimer() {
+  if (engagementTickStart === 0 && started && !audio.muted) {
+    engagementTickStart = performance.now();
+  }
+}
+// Page Visibility — не копим время когда вкладка в бэкграунде
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) pauseEngagementTimer();
+  else resumeEngagementTimer();
+});
+// Перед уходом — финальный audio_session_end с суммарным временем
+window.addEventListener("pagehide", () => {
+  pauseEngagementTimer();
+  if (engagementMs > 0) {
+    track("audio_session_end", { seconds: Math.round(engagementMs / 1000) });
+  }
+});
+
 /* ---- State management --------------------------------------------------- */
 let lastState = null;
 let lastPct = null;
@@ -1182,9 +1256,19 @@ function applyVisualState(state) {
 
 async function setMarketState(state, force = false) {
   if (!force && lastState && state.id === lastState.id) return;
+  const prevId = lastState ? lastState.id : null;
   lastState = state;
   applyVisualState(state);
   if (started) await audio.setState(state);
+  // Трекаем смену market-состояния только если это реальный переход (prev был)
+  if (prevId && prevId !== state.id && typeof track === "function") {
+    track("audio_state", {
+      state_id: state.id,
+      state_label: state.label,
+      from_state: prevId,
+      pct: lastPct == null ? null : Number(lastPct.toFixed(2)),
+    });
+  }
 }
 
 function updateTicker(price, pct) {
@@ -1270,6 +1354,15 @@ async function begin() {
     audio.enableContinuous(STATES).then(() => {
       if (lastPct != null) audio.applyMix(lastPct, 3000);
     });
+    // Определяем returning ДО записи флага, иначе всегда будет true
+    let returning = false;
+    try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
+    track("audio_started", {
+      returning,
+      state_id: lastState ? lastState.id : null,
+      pct: lastPct == null ? null : Number(lastPct.toFixed(2)),
+    });
+    startEngagementTimer();
     // помечаем что хотя бы раз запускался успешно — следующий визит попробует без жеста
     try { localStorage.setItem(RETURN_KEY, "1"); } catch (_) {}
   } catch (e) {
@@ -1319,9 +1412,15 @@ dom.mute.addEventListener("click", (e) => {
   audio.setMuted(m);
   dom.mute.textContent = m ? "○" : "◉";
   dom.viz.classList.toggle("muted", m);
+  track("mute_toggle", { muted: m, state_id: lastState ? lastState.id : null });
+  // При mute ставим на паузу engagement-таймер, при unmute — продолжаем
+  if (m) pauseEngagementTimer(); else resumeEngagementTimer();
 });
 
-dom.cta.addEventListener("click", (e) => e.stopPropagation());
+dom.cta.addEventListener("click", (e) => {
+  e.stopPropagation();
+  track("cta_click", { state_id: lastState ? lastState.id : null, pct: lastPct == null ? null : Number(lastPct.toFixed(2)) });
+});
 
 /* ---- Boot --------------------------------------------------------------- */
 // Показываем дефолтное STILL сразу, чтобы sleeve не был пустым до первого fetch'а.
@@ -1377,11 +1476,15 @@ tryAutoStart();
     "share-facebook": `https://www.facebook.com/sharer/sharer.php?u=${u}`,
     "share-linkedin": `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
   };
+  const channelOf = (id) => id.replace("share-", "");
   for (const [id, href] of Object.entries(links)) {
     const el = document.getElementById(id);
     if (!el) continue;
     el.href = href;
-    el.addEventListener("click", (e) => e.stopPropagation(), true);
+    el.addEventListener("click", (e) => {
+      e.stopPropagation();
+      track("share_click", { channel: channelOf(id), state_id: lastState ? lastState.id : null });
+    }, true);
   }
 
   const copyBtn = document.getElementById("share-copy");
@@ -1404,6 +1507,7 @@ tryAutoStart();
         }
         copyBtn.classList.add("copied");
         if (tip) tip.classList.add("show");
+        track("share_click", { channel: "copy", state_id: lastState ? lastState.id : null });
         setTimeout(() => {
           copyBtn.classList.remove("copied");
           if (tip) tip.classList.remove("show");
