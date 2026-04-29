@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>HODL FM — ambient awareness for crypto</title>
-<meta name="description" content="Background music that follows bitcoin. The whole market becomes a feeling — calm when it's calm, warm when it rises, cold when it falls. No alerts. Just air." />
+<title>HODL FM — ambient music that follows bitcoin</title>
+<meta name="description" content="Background music that follows bitcoin. Five textures for five market moods. Plays while you do something else. No alerts, no charts." />
 <meta name="keywords" content="bitcoin, crypto, ambient, generative music, market sentiment, BTC tracker, lo-fi crypto, mood, hodl, radio" />
 <meta name="author" content="Siberia Ventures" />
 <link rel="canonical" href="https://hodl-fm.siberia.fund/" />
@@ -12,24 +12,63 @@
 <!-- Open Graph (Facebook, LinkedIn, Telegram, iMessage, Slack) -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="HODL FM" />
-<meta property="og:title" content="HODL FM — ambient awareness for crypto" />
-<meta property="og:description" content="Background music that follows the market. Not alerts. Just feeling." />
+<meta property="og:title" content="HODL FM — ambient music that follows bitcoin" />
+<meta property="og:description" content="Five textures for five market moods. Plays in the background while you do something else. No alerts, no charts." />
 <meta property="og:url" content="https://hodl-fm.siberia.fund/" />
 <meta property="og:image" content="https://hodl-fm.siberia.fund/og-preview.jpg" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="HODL FM — ambient awareness for crypto" />
+<meta property="og:image:alt" content="HODL FM — ambient music that follows bitcoin" />
 <meta property="og:locale" content="en_US" />
+<meta property="og:locale:alternate" content="ru_RU" />
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="HODL FM — ambient awareness for crypto" />
-<meta name="twitter:description" content="Background music that follows the market. Not alerts. Just feeling." />
+<meta name="twitter:title" content="HODL FM — ambient music that follows bitcoin" />
+<meta name="twitter:description" content="Five textures for five market moods. Plays in the background while you do something else. No alerts, no charts." />
 <meta name="twitter:image" content="https://hodl-fm.siberia.fund/og-preview.jpg" />
-<meta name="twitter:image:alt" content="HODL FM — ambient awareness for crypto" />
+<meta name="twitter:image:alt" content="HODL FM — ambient music that follows bitcoin" />
+<!-- twitter:site/creator будут добавлены после регистрации @handle -->
 
 <meta name="theme-color" content="#EDE8E1" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EDE8E1'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%237A8472'/%3E%3C/svg%3E" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+<!-- Schema.org JSON-LD: WebSite + Organization + WebApplication -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://hodl-fm.siberia.fund/#website",
+      "url": "https://hodl-fm.siberia.fund/",
+      "name": "HODL FM",
+      "description": "Ambient music that follows bitcoin. Five textures for five market moods.",
+      "inLanguage": ["en", "ru"],
+      "publisher": { "@id": "https://siberia.fund/#org" }
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://hodl-fm.siberia.fund/#app",
+      "name": "HODL FM",
+      "url": "https://hodl-fm.siberia.fund/",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires modern browser with Web Audio API",
+      "description": "Browser radio that maps live bitcoin price action to five ambient textures: falling, cooling, still, rising, surge.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "author": { "@id": "https://siberia.fund/#org" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://siberia.fund/#org",
+      "name": "Siberia Ventures",
+      "url": "https://siberia.fund/"
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" />
@@ -465,6 +504,33 @@
     transition: opacity 200ms var(--ease-quick);
   }
   .welcome-foot.fade { opacity: 0.5; }
+  .welcome-live {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "DM Sans", sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--very-muted);
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 600ms var(--ease);
+  }
+  .welcome-live.ready { opacity: 1; }
+  .welcome-live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    animation: livePulse 2.4s ease-in-out infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50%      { opacity: 1;    transform: scale(1.15); }
+  }
+  .welcome-live-sep { color: var(--very-muted); opacity: 0.5; }
+  .welcome-live-state { font-weight: 500; color: var(--muted); letter-spacing: 0.14em; }
+  .welcome-live-price { color: var(--muted); letter-spacing: 0.06em; }
+  .welcome-live-delta { color: var(--muted); letter-spacing: 0.06em; }
   .welcome-foot {
     font-family: "DM Sans", sans-serif;
     font-size: 12px;
@@ -569,6 +635,13 @@
           <span class="spinner" aria-hidden="true"></span>
         </button>
         <div class="welcome-foot" id="welcome-foot">tap to start · sound on</div>
+        <div class="welcome-live" id="welcome-live" aria-live="polite">
+          <span class="welcome-live-dot" aria-hidden="true"></span>
+          <span class="welcome-live-state" id="welcome-live-state"> </span>
+          <span class="welcome-live-sep" aria-hidden="true">·</span>
+          <span class="welcome-live-price" id="welcome-live-price"> </span>
+          <span class="welcome-live-delta" id="welcome-live-delta"> </span>
+        </div>
       </div>
     </div>
 
@@ -1044,7 +1117,7 @@ const dom = {
     dom.dialTicks.appendChild(tick);
   }
 })();
-const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA"; // TODO: real ref after legal check
+const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA?utm_source=hodlfm&utm_medium=cta&utm_campaign=ambient_radio"; // TODO: real ref after legal check
 dom.cta.href = CTA_URL;
 
 const audio = new AmbientEngine();
@@ -1276,6 +1349,19 @@ function updateTicker(price, pct) {
   const sign = pct >= 0 ? "+" : "";
   dom.delta.textContent = sign + pct.toFixed(2) + "%  · 1h";
   dom.delta.className = pct >= 0 ? "delta-up" : "delta-down";
+
+  // Welcome-screen live ticker — тот же сигнал, но мельче и без символа ₿
+  const wState = document.getElementById("welcome-live-state");
+  const wPrice = document.getElementById("welcome-live-price");
+  const wDelta = document.getElementById("welcome-live-delta");
+  const wWrap  = document.getElementById("welcome-live");
+  if (wState && wPrice && wDelta) {
+    const st = (typeof classifyState === "function") ? classifyState(pct) : null;
+    wState.textContent = st ? st.label : "";
+    wPrice.textContent = "BTC $" + price.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    wDelta.textContent = sign + pct.toFixed(2) + "%";
+    if (wWrap) wWrap.classList.add("ready");
+  }
 }
 
 function setStatus(text) {
@@ -1465,16 +1551,19 @@ tryAutoStart();
    Нажатие на share-иконку НЕ должно вызывать gestureHandler/mute toggle — stopPropagation.
 -------------------------------------------------------------------------- */
 (function setupShare() {
-  const SHARE_URL = "https://hodl-fm.siberia.fund/";
-  const SHARE_TEXT = "HODL FM — ambient awareness for crypto. Background music that follows the market.";
-  const u = encodeURIComponent(SHARE_URL);
+  // На каждый канал — свой UTM, чтобы в GA4 атрибуция шла отдельно от cta_click
+  const SHARE_BASE = "https://hodl-fm.siberia.fund/";
+  const shareUrl = (channel) =>
+    `${SHARE_BASE}?utm_source=${channel}&utm_medium=share&utm_campaign=ambient_radio`;
+  const SHARE_TEXT = "HODL FM — ambient music that follows bitcoin. Five textures for five market moods.";
   const t = encodeURIComponent(SHARE_TEXT);
+  const SHARE_URL = SHARE_BASE; // copy-link остаётся чистым, без UTM
 
   const links = {
-    "share-twitter":  `https://twitter.com/intent/tweet?url=${u}&text=${t}`,
-    "share-telegram": `https://t.me/share/url?url=${u}&text=${t}`,
-    "share-facebook": `https://www.facebook.com/sharer/sharer.php?u=${u}`,
-    "share-linkedin": `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
+    "share-twitter":  `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl("twitter"))}&text=${t}`,
+    "share-telegram": `https://t.me/share/url?url=${encodeURIComponent(shareUrl("telegram"))}&text=${t}`,
+    "share-facebook": `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl("facebook"))}`,
+    "share-linkedin": `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl("linkedin"))}`,
   };
   const channelOf = (id) => id.replace("share-", "");
   for (const [id, href] of Object.entries(links)) {
