@@ -873,7 +873,13 @@ class AmbientEngine {
     this.lastMixPct = null;
   }
   async ensureCtx() {
-    if (this.ctx) return;
+    if (this.ctx) {
+      // На Android Chrome ctx может быть в suspended даже после создания.
+      if (this.ctx.state === "suspended") {
+        try { await this.ctx.resume(); } catch (_) {}
+      }
+      return;
+    }
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.outGain = this.ctx.createGain();
     this.outGain.gain.value = this.targetLevel;
@@ -1519,11 +1525,34 @@ async function tick() {
 const RETURN_KEY = "hodlfm.audioOk";
 // Только "интенциональные" жесты — mousemove/scroll/wheel Chrome не считает достаточными
 // для autoplay-разрешения, поэтому они рождают console-warning при вызове ensureCtx.
-const gestureEvents = ["pointerdown", "click", "keydown", "touchstart"];
+// Используем события «завершения жеста» (pointerup/click/touchend) — именно после них
+// Chrome/Safari выдают user activation достаточный для autoplay. pointerdown/touchstart
+// раньше user activation на Android в некоторых версиях — поэтому AudioContext остаётся suspended.
+const gestureEvents = ["pointerup", "click", "keydown", "touchend"];
+
+// Простой экранный дебаг-логгер — включается через ?debug=1
+const DEBUG_AUDIO = new URLSearchParams(location.search).get("debug") === "1";
+let _dbgEl = null;
+function dbg(msg) {
+  if (!DEBUG_AUDIO) return;
+  if (!_dbgEl) {
+    _dbgEl = document.createElement("pre");
+    _dbgEl.style.cssText = "position:fixed;bottom:0;left:0;right:0;max-height:50vh;overflow:auto;margin:0;padding:8px 12px;background:rgba(0,0,0,.85);color:#9f9;font:11px/1.3 ui-monospace,monospace;z-index:99999;white-space:pre-wrap;word-break:break-all;";
+    document.body.appendChild(_dbgEl);
+  }
+  const t = (performance.now()/1000).toFixed(2);
+  _dbgEl.textContent += `[${t}s] ${msg}\n`;
+  _dbgEl.scrollTop = _dbgEl.scrollHeight;
+}
+if (DEBUG_AUDIO) {
+  window.addEventListener("error", e => dbg("WINDOW ERROR: " + (e.error?.stack || e.message)));
+  window.addEventListener("unhandledrejection", e => dbg("PROMISE REJ: " + (e.reason?.stack || e.reason)));
+}
 
 async function begin() {
   if (started) return;
   started = true;
+  dbg("begin() called");
   dom.tapHint.classList.add("hidden");
   dom.welcome.classList.add("hidden");
   dom.onAir.classList.add("live");
@@ -1531,13 +1560,17 @@ async function begin() {
   gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
   try {
     await audio.ensureCtx();
+    dbg("ensureCtx OK. ctx.state=" + (audio.ctx ? audio.ctx.state : "null"));
     // Первый звук — это стартовый setState от текущего состояния (моментальный отклик),
     // потом в фоне включаем continuous mix (плавный переход на все 5 голосов).
+    dbg("setState(" + (lastState ? lastState.id : "null") + ")");
     if (lastState) await audio.setState(lastState);
+    dbg("setState done");
     // Неблокирующее включение continuous mix.
     audio.enableContinuous(STATES).then(() => {
+      dbg("enableContinuous done. voices=" + (audio.mixVoices ? audio.mixVoices.length : 0));
       if (lastPct != null) audio.applyMix(lastPct, 3000);
-    });
+    }).catch(e => dbg("enableContinuous FAILED: " + (e?.stack || e)));
     // Определяем returning ДО записи флага, иначе всегда будет true
     let returning = false;
     try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
@@ -1550,6 +1583,7 @@ async function begin() {
     // помечаем что хотя бы раз запускался успешно — следующий визит попробует без жеста
     try { localStorage.setItem(RETURN_KEY, "1"); } catch (_) {}
   } catch (e) {
+    dbg("BEGIN ERROR: " + (e?.stack || e));
     console.warn("audio start failed", e);
     started = false;
     dom.onAir.classList.remove("live");
@@ -1558,7 +1592,8 @@ async function begin() {
   }
 }
 
-function gestureHandler() {
+function gestureHandler(e) {
+  dbg("gesture: " + (e ? e.type : "?") + " target=" + (e?.target?.tagName || "?") + "#" + (e?.target?.id || ""));
   if (!started) begin();
 }
 
