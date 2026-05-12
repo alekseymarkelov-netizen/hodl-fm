@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>HODL FM — Audio Debug</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; padding: 0; background: #0a0a0a; color: #e4e4e4; font: 14px/1.5 ui-monospace, monospace; }
+  header { padding: 14px 16px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #0a0a0a; z-index: 10; }
+  header h1 { margin: 0 0 8px; font: 600 16px/1.2 ui-sans-serif, system-ui; }
+  header p { margin: 0 0 10px; color: #999; font-size: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { background: #2a2a2a; color: #e4e4e4; border: 1px solid #3a3a3a; padding: 10px 14px; border-radius: 6px; font: 600 13px/1 ui-sans-serif, system-ui; cursor: pointer; touch-action: manipulation; }
+  button:active { background: #3a3a3a; }
+  button.primary { background: #2563eb; border-color: #2563eb; }
+  #log { padding: 12px 16px; white-space: pre-wrap; word-break: break-word; font-size: 12px; }
+  .ok { color: #4ade80; }
+  .warn { color: #fbbf24; }
+  .err { color: #f87171; }
+  .info { color: #93c5fd; }
+  .dim { color: #777; }
+  hr { border: 0; border-top: 1px dashed #2a2a2a; margin: 6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HODL FM — Audio Debug</h1>
+  <p>Tap <b>RUN ALL</b>. Send the screenshot of the log back.</p>
+  <div class="row">
+    <button id="run" class="primary">RUN ALL TESTS</button>
+    <button id="play">PLAY 5s</button>
+    <button id="stop">STOP</button>
+    <button id="clear">CLEAR</button>
+  </div>
+</header>
+<pre id="log"></pre>
+
+<script>
+const URLS = [
+  ["falling", "audio/falling-v3-mixkit.ogg"],
+  ["cooling", "audio/cooling-v3-mixkit.ogg"],
+  ["still",   "audio/still-v3-mixkit.ogg"],
+  ["rising",  "audio/rising-v3-mixkit.ogg"],
+  ["surge",   "audio/surge-v3-mixkit.ogg"],
+];
+
+const $log = document.getElementById("log");
+function L(msg, cls) {
+  const span = document.createElement("span");
+  if (cls) span.className = cls;
+  span.textContent = msg + "\n";
+  $log.appendChild(span);
+  $log.scrollTop = $log.scrollHeight;
+  window.scrollTo(0, document.body.scrollHeight);
+}
+function HR() { const hr = document.createElement("hr"); $log.appendChild(hr); }
+
+window.addEventListener("error", (e) => L("WINDOW ERROR: " + (e.error?.stack || e.message), "err"));
+window.addEventListener("unhandledrejection", (e) => L("UNHANDLED PROMISE: " + (e.reason?.stack || e.reason), "err"));
+
+let ctx = null;
+let activeSource = null;
+let activeGain = null;
+let decoded = {};
+
+function envInfo() {
+  L("--- ENVIRONMENT ---", "info");
+  L("UA: " + navigator.userAgent, "dim");
+  L("Platform: " + (navigator.platform || "?") + " | Languages: " + (navigator.languages || []).join(","), "dim");
+  L("Online: " + navigator.onLine + " | DPR: " + window.devicePixelRatio, "dim");
+  L("Touch points: " + navigator.maxTouchPoints, "dim");
+  const audio = document.createElement("audio");
+  const ogg = audio.canPlayType("audio/ogg; codecs=vorbis");
+  const oggOpus = audio.canPlayType("audio/ogg; codecs=opus");
+  const mp4 = audio.canPlayType("audio/mp4");
+  const aac = audio.canPlayType("audio/aac");
+  L("canPlayType ogg/vorbis: " + (ogg || "(empty)"), ogg ? "ok" : "err");
+  L("canPlayType ogg/opus:   " + (oggOpus || "(empty)"), "dim");
+  L("canPlayType audio/mp4:  " + (mp4 || "(empty)"), "dim");
+  L("canPlayType audio/aac:  " + (aac || "(empty)"), "dim");
+  const HasAC = !!(window.AudioContext || window.webkitAudioContext);
+  L("AudioContext available: " + HasAC, HasAC ? "ok" : "err");
+}
+
+async function makeCtx() {
+  if (ctx) return ctx;
+  try {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    L("AudioContext created. state=" + ctx.state + ", sampleRate=" + ctx.sampleRate, "ok");
+    L("destination.maxChannelCount=" + ctx.destination.maxChannelCount + " channelCount=" + ctx.destination.channelCount, "dim");
+    if (ctx.state === "suspended") {
+      L("ctx is suspended — calling resume()...", "warn");
+      await ctx.resume();
+      L("ctx.resume() done. state=" + ctx.state, ctx.state === "running" ? "ok" : "err");
+    }
+    return ctx;
+  } catch (e) {
+    L("AudioContext creation FAILED: " + (e.message || e), "err");
+    return null;
+  }
+}
+
+async function fetchAndDecode(url) {
+  L("→ fetching " + url, "info");
+  let res;
+  try {
+    res = await fetch(url, { cache: "force-cache" });
+  } catch (e) {
+    L("  fetch threw: " + (e.message || e), "err");
+    return null;
+  }
+  L("  status=" + res.status + " ok=" + res.ok + " type=" + (res.headers.get("content-type") || "?"), res.ok ? "ok" : "err");
+  if (!res.ok) return null;
+  let arr;
+  try {
+    arr = await res.arrayBuffer();
+  } catch (e) {
+    L("  arrayBuffer threw: " + (e.message || e), "err");
+    return null;
+  }
+  L("  bytes=" + arr.byteLength, "dim");
+  if (!ctx) return null;
+  try {
+    const buf = await ctx.decodeAudioData(arr.slice(0));
+    L("  decode OK: dur=" + buf.duration.toFixed(2) + "s, ch=" + buf.numberOfChannels + ", sr=" + buf.sampleRate, "ok");
+    return buf;
+  } catch (e) {
+    L("  decode FAILED: " + (e.message || e), "err");
+    return null;
+  }
+}
+
+async function playBuffer(buf, seconds) {
+  if (!ctx || !buf) return;
+  stopActive();
+  const g = ctx.createGain();
+  g.gain.value = 1.0;
+  g.connect(ctx.destination);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  src.connect(g);
+  try {
+    src.start();
+    activeSource = src; activeGain = g;
+    L("playing buffer for " + seconds + "s, gain=1.0 → destination", "ok");
+    L("ctx.state=" + ctx.state + " currentTime=" + ctx.currentTime.toFixed(2), "dim");
+    await new Promise(r => setTimeout(r, seconds * 1000));
+    if (activeSource === src) stopActive();
+  } catch (e) {
+    L("src.start() FAILED: " + (e.message || e), "err");
+  }
+}
+
+function stopActive() {
+  if (activeSource) { try { activeSource.stop(0); } catch(_){} activeSource = null; }
+  if (activeGain) { try { activeGain.disconnect(); } catch(_){} activeGain = null; }
+}
+
+async function runAll() {
+  $log.innerHTML = "";
+  envInfo();
+  HR();
+  L("--- TEST 1: AudioContext ---", "info");
+  const ok = await makeCtx();
+  if (!ok) { L("ABORT: no AudioContext", "err"); return; }
+  HR();
+  L("--- TEST 2: silent oscillator (synth path) ---", "info");
+  try {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    g.gain.value = 0.15;
+    osc.frequency.value = 440;
+    osc.connect(g).connect(ctx.destination);
+    osc.start();
+    L("440Hz tone playing 1.5s — should be audible", "warn");
+    await new Promise(r => setTimeout(r, 1500));
+    osc.stop();
+    L("tone done", "ok");
+  } catch (e) {
+    L("oscillator FAILED: " + (e.message || e), "err");
+  }
+  HR();
+  L("--- TEST 3: fetch + decode all 5 OGGs ---", "info");
+  for (const [name, url] of URLS) {
+    decoded[name] = await fetchAndDecode(url);
+  }
+  HR();
+  L("--- TEST 4: play STILL for 5s (OGG path) ---", "info");
+  if (decoded.still) {
+    await playBuffer(decoded.still, 5);
+  } else {
+    L("still buffer missing, skipping", "err");
+  }
+  HR();
+  L("DONE. Send the screenshot.", "ok");
+}
+
+document.getElementById("run").addEventListener("click", () => runAll());
+document.getElementById("play").addEventListener("click", async () => {
+  await makeCtx();
+  if (!decoded.still) decoded.still = await fetchAndDecode(URLS[2][1]);
+  if (decoded.still) await playBuffer(decoded.still, 5);
+});
+document.getElementById("stop").addEventListener("click", stopActive);
+document.getElementById("clear").addEventListener("click", () => { $log.innerHTML = ""; });
+
+L("Ready. Tap RUN ALL TESTS.", "info");
+</script>
+</body>
+</html>
