@@ -1013,6 +1013,7 @@ class AmbientEngine {
     // setState() вызывается из setMarketState() для совместимости API,
     // но при continuous=true это безопасный no-op.
     if (this.continuous) return;
+    this._lastSingleState = state; // для resumeAndHeal()
     await this.ensureCtx();
     // Первый запуск — короткий fade-in (250мс) чтобы избежать click без ощутимой задержки.
     // Переключения между состояниями — плавнее (3с) для музыкальности.
@@ -1071,6 +1072,79 @@ class AmbientEngine {
     this.outGain.gain.cancelScheduledValues(t0);
     this.outGain.gain.linearRampToValueAtTime(m ? 0 : this.targetLevel, t0 + 0.4);
   }
+
+  /* ---- Lifecycle resilience -----------------------------------------------
+     Android Chrome (и иногда iOS Safari) при блокировке экрана,
+     переключении вкладок, входящем звонке или audio focus loss переводит
+     AudioContext в suspended state. Иногда простого ctx.resume() хватает,
+     но в редких случаях BufferSource "зависают" в нерабочем состоянии.
+     Этот метод вызывается из внешних lifecycle-listeners. */
+  async resumeAndHeal() {
+    if (!this.ctx) return;
+    try {
+      if (this.ctx.state === "suspended") {
+        await this.ctx.resume();
+      }
+    } catch (e) {
+      console.warn("resume failed:", e);
+    }
+    // Если continuous-миксер был включён — пересобираем воисы если нужно.
+    if (this.continuous && this.mixVoices) {
+      await this._recreateMixVoicesIfBroken();
+    } else if (this.voice && this.voice instanceof SampleVoice) {
+      // Одиночный режим — тоже проверяем.
+      this._healSingleVoice();
+    }
+  }
+
+  async _recreateMixVoicesIfBroken() {
+    // Пересоздаём BufferSource'ы — Web Audio specifies source can start() only once.
+    // После долгого suspend на Android Chrome старые source'ы могут "висеть".
+    if (!this.mixVoices || !this.mixVoices.length) return;
+    const needsHeal = this._lastSuspendedAt && (Date.now() - this._lastSuspendedAt > 1500);
+    if (!needsHeal) return;
+    console.log("[audio] healing continuous voices after long suspend");
+    const oldVoices = this.mixVoices;
+    const lastPct = this.lastMixPct;
+    const startTime = this.ctx.currentTime + 0.05;
+    const newVoices = [];
+    for (let i = 0; i < oldVoices.length; i++) {
+      const old = oldVoices[i];
+      if (!old || !old.state) continue;
+      const buf = this.bufferCache.get(old.state.loop);
+      if (!buf) continue;
+      const nv = new SampleVoice(this.ctx, this.outGain, buf, old.state.sample);
+      try { nv.src.start(startTime); } catch(_) {}
+      nv.alive = true;
+      // Стартуем с gain=0; applyMix ниже выставит правильные веса.
+      nv.master.gain.setValueAtTime(0, this.ctx.currentTime);
+      newVoices.push({ state: old.state, voice: nv, anchor: old.anchor });
+    }
+    if (!newVoices.length) { this._lastSuspendedAt = null; return; }
+    // Стопим старые без рампы
+    oldVoices.forEach(o => { try { o.voice.stop(0); } catch(_){} });
+    this.mixVoices = newVoices;
+    // Перерисуем микс по текущему pct (короткий ramp, чтобы не было щелчка)
+    if (lastPct != null) this.applyMix(lastPct, 200);
+    this._lastSuspendedAt = null;
+  }
+
+  _healSingleVoice() {
+    if (!this.voice || !(this.voice instanceof SampleVoice)) return;
+    const needsHeal = this._lastSuspendedAt && (Date.now() - this._lastSuspendedAt > 1500);
+    if (!needsHeal) return;
+    console.log("[audio] healing single voice after long suspend");
+    // Для single-voice проще: вызываем setState снова.
+    if (this._lastSingleState) {
+      this.setState(this._lastSingleState, 0);
+    }
+    this._lastSuspendedAt = null;
+  }
+
+  /* Вызывается когда мы знаем что вкладка ушла в фон — фиксируем время. */
+  notePotentialSuspend() {
+    this._lastSuspendedAt = Date.now();
+  }
 }
 
 /* ---- Visualizer --------------------------------------------------------- */
@@ -1128,6 +1202,23 @@ const CTA_URL = "https://app.hyperliquid.xyz/join/SIBERIA?utm_source=hodlfm&utm_
 dom.cta.href = CTA_URL;
 
 const audio = new AmbientEngine();
+
+/* ---- Audio lifecycle listeners (mobile resilience) ---------------------
+   Android Chrome и iOS Safari агрессивно suspend'ят AudioContext при
+   уходе вкладки в фон, блокировке экрана, входящих звонках. Слушаем
+   visibility/focus/pageshow и вызываем resumeAndHeal() который при
+   необходимости пересобирает BufferSource'ы. */
+(function setupAudioLifecycle() {
+  const onHide = () => { try { audio.notePotentialSuspend(); } catch(_){} };
+  const onShow = () => { try { audio.resumeAndHeal(); } catch(_){} };
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) onHide(); else onShow();
+  }, { passive: true });
+  window.addEventListener("focus", onShow, { passive: true });
+  window.addEventListener("blur", onHide, { passive: true });
+  window.addEventListener("pageshow", onShow, { passive: true });
+  window.addEventListener("pagehide", onHide, { passive: true });
+})();
 
 /* ---- UI loading indicator ----------------------------------------------
    Показываем во время fetch+decode сэмплов. Буфер still.ogg начинаем
