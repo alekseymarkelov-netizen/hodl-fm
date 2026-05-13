@@ -27,7 +27,7 @@
 <meta name="twitter:description" content="Five textures for five market moods. Plays in the background while you do something else. No alerts, no charts." />
 <meta name="twitter:image" content="https://hodl-fm.siberia.fund/og-preview.jpg" />
 <meta name="twitter:image:alt" content="HODL FM — ambient music that follows bitcoin" />
-<!-- twitter:site/creator будут добавлены после регистрации @handle -->
+<!-- twitter:site/creator will be added after @handle registration -->
 
 <meta name="theme-color" content="#EDE8E1" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EDE8E1'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%237A8472'/%3E%3C/svg%3E" />
@@ -72,7 +72,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
-<!-- Подгружаем только дефолтный луп заранее — остальные 4 лениво по запросу -->
+<!-- Prefetch only the default loop eagerly — the other 4 load lazily on demand -->
 <link rel="prefetch" href="audio/still-v3-mixkit.ogg" as="audio" type="audio/ogg" />
 <style>
   :root {
@@ -88,7 +88,7 @@
     --accent: #6B6460;
 
     /* timings (concept §5) */
-    --t-bg: 6000ms;        /* fade быстрее догоняет цену между tick'ами раз в 15с */
+    --t-bg: 6000ms;        /* faster fade keeps up with price between 15s ticks */
     --t-sleeve: 8000ms;
     --t-text: 600ms;
     --t-quick: 160ms;
@@ -193,7 +193,7 @@
   }
   .track-name.swap { opacity: 0; }
 
-  /* ---- Radio dial — 5 состояний с иглой по точному % изменения */
+  /* ---- Radio dial — 5 states with needle at exact percent change */
   .dial {
     margin-top: 14px;
     display: grid;
@@ -212,7 +212,7 @@
     justify-content: space-between;
     pointer-events: none;
   }
-  /* 21 риска: каждая 5-я выше («главные» отметки на лейблах) */
+  /* 21 ticks: every 5th is taller ("major" marks under labels) */
   .dial-tick {
     width: 1px;
     height: 6px;
@@ -232,11 +232,11 @@
     background: var(--accent);
     transform: translateX(-1px);
     transition: left 11000ms var(--ease), background-color var(--t-sleeve) var(--ease);
-    /* риски ниже иглы по Z, игла всегда поверх */
+    /* ticks below needle on Z, needle always on top */
     z-index: 1;
   }
   .dial-needle::before {
-    /* маленькая точка-«бусина» на верху иглы */
+    /* small bead dot at the top of the needle */
     content: "";
     position: absolute;
     top: -2px;
@@ -267,7 +267,7 @@
   .dial-label.adjacent {
     opacity: 0.75;
   }
-  /* Скрываем крайние лейблы на узких сливах чтобы не переносились */
+  /* Hide edge labels on narrow viewports to prevent wrapping */
   @media (max-width: 360px) {
     .dial-labels { font-size: 8.5px; letter-spacing: 0.10em; }
   }
@@ -350,7 +350,7 @@
   footer a:hover { color: var(--accent); }
   .footer-credit { letter-spacing: 0.02em; }
 
-  /* Share buttons — лаконичные иконки, слева от footer-credit */
+  /* Share buttons — compact icons, left of footer-credit */
   .share {
     display: inline-flex; align-items: center; gap: 4px;
     font-size: 11px;
@@ -400,7 +400,7 @@
     .share-label { display: none; }
   }
 
-  /* ---- Welcome overlay (первый визит) -------------------------- */
+  /* ---- Welcome overlay (first visit) -------------------------- */
   .welcome {
     position: fixed;
     inset: 0;
@@ -456,7 +456,7 @@
     place-items: center;
     cursor: pointer;
     transition: transform 220ms var(--ease-quick), background-color 220ms var(--ease-quick), border-color 220ms var(--ease-quick);
-    /* мягкая пульсация — сигнал живости, но без навязчивости */
+    /* gentle pulse — alive signal, not intrusive */
     animation: welcomePulse 2.6s var(--ease) infinite;
   }
   .welcome-play:hover {
@@ -469,10 +469,10 @@
   .welcome-play svg {
     width: 28px; height: 28px;
     fill: var(--ink);
-    margin-left: 4px; /* оптическое центрирование треугольника */
+    margin-left: 4px; /* optical centering of the play triangle */
     transition: fill 220ms var(--ease-quick), opacity 200ms var(--ease-quick);
   }
-  /* Состояние «загружаем»: треугольник исчезает, появляется спиннер */
+  /* "loading" state: triangle fades out, spinner appears */
   .welcome-play.loading {
     animation: none;
     cursor: progress;
@@ -541,7 +541,7 @@
     .welcome-play .spinner { animation: none; opacity: 0.7; }
   }
 
-  /* ---- Tap-hint (фаллбэк, если overlay не показывается) -------- */
+  /* ---- Tap-hint (fallback if overlay is not shown) -------- */
   .tap-hint {
     font-size: 13px;
     color: var(--muted);
@@ -687,7 +687,7 @@ const STATES = [
     track: "Cold Lavender, No. 1",
     bg: "#B5A8C8", accent: "#2E2438", sleeve: "#CFC5DC",
     loop: "audio/falling-v3-mixkit.ogg",
-    sample: { gain: 1.30, filterHz: 1400, rate: 1.00 },  // C2-drone, глубокий
+    sample: { gain: 1.30, filterHz: 1400, rate: 1.00 },  // C2-drone, deep
     // fallback synth recipe — slow, low, sparse
     synth: { baseHz: 110, intervals: [0, 3, 7, 10], rateMs: 5200, pulseLen: 3.6, lfoHz: 0.08, filterHz: 480, gain: 0.18 }
   },
@@ -706,7 +706,7 @@ const STATES = [
     track: "Fog Study, No. 3",
     bg: "#EDE8E1", accent: "#6B6460", sleeve: "#F5F2EE",
     loop: "audio/still-v3-mixkit.ogg",
-    sample: { gain: 1.30, filterHz: 2400, rate: 1.00 },  // G2-drone, нейтральный
+    sample: { gain: 1.30, filterHz: 2400, rate: 1.00 },  // G2-drone, neutral
     synth: { baseHz: 146.83, intervals: [0, 5, 7], rateMs: 4000, pulseLen: 2.6, lfoHz: 0.18, filterHz: 900, gain: 0.16 }
   },
   {
@@ -724,7 +724,7 @@ const STATES = [
     track: "Sage Bloom",
     bg: "#85C088", accent: "#1E4825", sleeve: "#A5D2A8",
     loop: "audio/surge-v3-mixkit.ogg",
-    sample: { gain: 1.35, filterHz: 4500, rate: 1.00 },  // E3-drone, яркий
+    sample: { gain: 1.35, filterHz: 4500, rate: 1.00 },  // E3-drone, bright
     synth: { baseHz: 196.0, intervals: [0, 4, 7, 11], rateMs: 2800, pulseLen: 2.2, lfoHz: 0.32, filterHz: 1600, gain: 0.20 }
   }
 ];
@@ -750,7 +750,7 @@ class AmbientVoice {
   }
   start(recipe) {
     this.recipe = recipe;
-    // Ставим фильтр сразу на целевое значение, не рампим — иначе первые 4с звук глухой
+    // Set filter immediately to target value, no ramp — otherwise first 4s sound muffled
     this.filter.frequency.cancelScheduledValues(this.ctx.currentTime);
     this.filter.frequency.value = recipe.filterHz;
     // slow LFO modulating filter for breathing feel
@@ -760,7 +760,7 @@ class AmbientVoice {
     this.lfoGain.gain.value = recipe.filterHz * 0.25;
     this.lfo.connect(this.lfoGain).connect(this.filter.frequency);
     this.lfo.start();
-    // Первая нота сразу, без setTimeout, чтобы звук появился моментально
+    // First note immediately, no setTimeout, so sound starts without delay
     this._scheduleNextNote();
   }
   _scheduleNextNote() {
@@ -810,14 +810,14 @@ class AmbientVoice {
 }
 
 /* ---- Sample voice -------------------------------------------------------
-   Проигрывает один луп в loop=true режиме через BufferSource → lowpass → master.
-   Одноразовый «старт», фейды идут по master.gain — идентичный API с AmbientVoice.
+   Plays a single loop in loop=true mode via BufferSource → lowpass → master.
+   One-shot start, fades go through master.gain — identical API to AmbientVoice.
 -------------------------------------------------------------------------- */
-/* SampleVoice — ровный луп без JS-overlap.
-   Аудио-файлы уже самозамкнутые: внутри файла конец плавно
-   перетекает в начало через 4-секундный acrossfade плюс наложен плотный
-   dynaudnorm. Поэтому native loop=true даёт ровную громкость без интерференции
-   двух источников, которая раньше создавала слышимые "волны". */
+/* SampleVoice — smooth loop without JS-overlap.
+   Audio files are self-looping: the end crossfades into the start
+   via a 4-second acrossfade with heavy dynaudnorm applied.
+   Native loop=true therefore gives even loudness without the interference
+   of two overlapping sources that previously caused audible "beats". */
 class SampleVoice {
   constructor(ctx, dest, buffer, params) {
     this.ctx = ctx;
@@ -864,17 +864,17 @@ class AmbientEngine {
     this.outGain = null;
     this.voice = null;
     this.muted = false;
-    this.targetLevel = 1.15; // мастер слегка приподнят, без агрессии — иначе лимитер «качает»
+    this.targetLevel = 1.15; // master slightly boosted, gentle — otherwise limiter pumps
     this.bufferCache = new Map();   // url → AudioBuffer
     this.fetchPromises = new Map(); // url → Promise<AudioBuffer>
     // —— Continuous mix state ——
-    this.continuous = false;          // включён ли непрерывный cross-mix
-    this.mixVoices = null;            // [{state, voice, anchor}], по одному на состояние
+    this.continuous = false;          // whether continuous cross-mix is active
+    this.mixVoices = null;            // [{state, voice, anchor}], one per state
     this.lastMixPct = null;
   }
   async ensureCtx() {
     if (this.ctx) {
-      // На Android Chrome ctx может быть в suspended даже после создания.
+      // On Android Chrome ctx may be suspended even after creation.
       if (this.ctx.state === "suspended") {
         try { await this.ctx.resume(); } catch (_) {}
       }
@@ -883,15 +883,15 @@ class AmbientEngine {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.outGain = this.ctx.createGain();
     this.outGain.gain.value = this.targetLevel;
-    // Мягкий лимитер на выходе — предотвращает клиппинг при мастер-бусте >1.0
-    // Прозрачный «safety» лимитер — срабатывает только при настоящих пиках,
-    // не «качает» громкость на каждой ноте фортепиано.
+    // Soft output limiter — prevents clipping when master boost >1.0
+    // Transparent "safety" limiter — only fires on true peaks,
+    // does not pump loudness on every piano note.
     this.limiter = this.ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -1;    // только защита от клиппинга
-    this.limiter.knee.value = 12;          // широкий knee — мягкое вхождение
-    this.limiter.ratio.value = 4;          // умеренная компрессия
+    this.limiter.threshold.value = -1;    // clip protection only
+    this.limiter.knee.value = 12;          // wide knee — gentle onset
+    this.limiter.ratio.value = 4;          // moderate compression
     this.limiter.attack.value = 0.010;
-    this.limiter.release.value = 0.400;    // длинный release — нет pumping
+    this.limiter.release.value = 0.400;    // long release — no pumping
     this.outGain.connect(this.limiter).connect(this.ctx.destination);
     if (this.ctx.state === "suspended") await this.ctx.resume();
   }
@@ -899,8 +899,8 @@ class AmbientEngine {
     if (this.bufferCache.has(url)) return this.bufferCache.get(url);
     if (this.fetchPromises.has(url)) return this.fetchPromises.get(url);
     const p = (async () => {
-      // Retry с экспоненциальным бэкоффом — лечит ERR_CONNECTION_RESET
-      // (рвёт обычно антивирус/MITM-прокси на первом большом TLS-потоке).
+      // Retry with exponential backoff — fixes ERR_CONNECTION_RESET
+      // (usually broken by antivirus/MITM-proxy on the first large TLS stream).
       let lastErr;
       for (let attempt = 0; attempt < 4; attempt++) {
         try {
@@ -929,15 +929,15 @@ class AmbientEngine {
     }
   }
   /* ---- Continuous mix -------------------------------------------------
-     Запускает все 5 SampleVoice одновременно (синхронно по фазе),
-     все на gain=0. applyMix(pct) плавно поднимает два соседних голоса
-     по equal-power law (cos/sin), остальные жёстко в ноль.
-     Производит fallback на старый setState() если буферы ещё не загружены.
+     Starts all 5 SampleVoice instances simultaneously (phase-synced),
+     all at gain=0. applyMix(pct) smoothly raises two adjacent voices
+     via equal-power law (cos/sin), others hard-muted to zero.
+     Falls back to legacy setState() if buffers are not yet loaded.
   --------------------------------------------------------------------- */
   async enableContinuous(states) {
     await this.ensureCtx();
     if (this.continuous) return;
-    // Грузим все 5 буферов параллельно (кэш общий, повторных фетчей не будет).
+    // Load all 5 buffers in parallel (shared cache, no duplicate fetches).
     let buffers;
     try {
       buffers = await Promise.all(states.map(s => this._loadBuffer(s.loop)));
@@ -945,10 +945,10 @@ class AmbientEngine {
       console.warn("continuous mix: buffer load failed, staying on discrete setState", e);
       return;
     }
-    // Плавно гасим текущий voice (синтез или одиночный сэмпл)
+    // Gracefully stop current voice (synth or single sample)
     if (this.voice) { this.voice.stop(2000); this.voice = null; }
 
-    // Старт всех 5 воисов одновременно — startTime один и тот же для фазовой когерентности
+    // Start all 5 voices simultaneously — same startTime for phase coherence
     const startTime = this.ctx.currentTime + 0.05;
     this.mixVoices = states.map((state, i) => {
       const v = new SampleVoice(this.ctx, this.outGain, buffers[i], state.sample);
@@ -961,25 +961,25 @@ class AmbientEngine {
       return { state, voice: v, anchor };
     });
     this.continuous = true;
-    // Если уже был pct — применим сразу, иначе стартовые веса от STILL
+    // If pct was already set — apply immediately, otherwise default weights from STILL
     this.applyMix(this.lastMixPct == null ? 0 : this.lastMixPct, 1500);
   }
 
   /* Plateau equal-power crossfade.
-     Проблема: при чистом equal-power (cos/sin) два соседних дрона звучат одновременно
-     на большей части переходной зоны. При близких тональных центрах (COOLING↔STILL)
-     это воспринимается как "накладка".
-     Решение: в крайних 30% переходной зоны жёстко играет один голос (plateau),
-     в средних 40% — обычный cos/sin кроссфейд.
-     Сумма квадратов весов всегда = 1 (equal-power сохранён). */
+     Problem: with pure equal-power (cos/sin) two adjacent drones play simultaneously
+     across most of the transition zone. When tonal centers are close (COOLING↔STILL)
+     this is perceived as a "pile-up".
+     Solution: in the outer 30% of the transition zone only one voice plays (plateau),
+     in the middle 40% — normal cos/sin crossfade.
+     Sum of squared weights always = 1 (equal-power preserved). */
   applyMix(pct, rampMs) {
     this.lastMixPct = pct;
     if (!this.continuous || !this.mixVoices) return;
     const ramp = (rampMs == null ? 8000 : rampMs) / 1000;
     const t0 = this.ctx.currentTime;
-    const arr = this.mixVoices; // уже отсортированы по anchor (порядок STATES)
+    const arr = this.mixVoices; // already sorted by anchor (STATES order)
 
-    // Находим пару
+    // Find the pair
     let aIdx = 0, bIdx = 0, t = 0;
     if (pct <= arr[0].anchor) { aIdx = 0; bIdx = 0; t = 0; }
     else if (pct >= arr[arr.length - 1].anchor) { aIdx = arr.length - 1; bIdx = arr.length - 1; t = 0; }
@@ -993,7 +993,7 @@ class AmbientEngine {
       }
     }
 
-    // Plateau equal-power: сжимаем реальный кроссфейд в окно t∈[0.3, 0.7]
+    // Plateau equal-power: compress the real crossfade into window t∈[0.3, 0.7]
     let xfadeT;
     if (t <= 0.3)      xfadeT = 0;
     else if (t >= 0.7) xfadeT = 1;
@@ -1003,10 +1003,10 @@ class AmbientEngine {
 
     for (let i = 0; i < arr.length; i++) {
       let target = 0;
-      if (i === aIdx && i === bIdx) target = 1;          // край (всё на одном)
+      if (i === aIdx && i === bIdx) target = 1;          // edge (everything on one voice)
       else if (i === aIdx) target = gA;
       else if (i === bIdx) target = gB;
-      // умножаем на peak gain воиса (из sample.gain)
+      // multiply by voice peak gain (from sample.gain)
       const peak = arr[i].voice.peak;
       const g = arr[i].voice.master.gain;
       g.cancelScheduledValues(t0);
@@ -1015,19 +1015,19 @@ class AmbientEngine {
   }
 
   async setState(state) {
-    // Если continuous mix активен — аудио управляется через applyMix(pct).
-    // setState() вызывается из setMarketState() для совместимости API,
-    // но при continuous=true это безопасный no-op.
+    // If continuous mix is active — audio is driven via applyMix(pct).
+    // setState() is called from setMarketState() for API compatibility,
+    // but with continuous=true this is a safe no-op.
     if (this.continuous) return;
-    this._lastSingleState = state; // для resumeAndHeal()
+    this._lastSingleState = state; // for resumeAndHeal()
     await this.ensureCtx();
-    // Первый запуск — короткий fade-in (250мс) чтобы избежать click без ощутимой задержки.
-    // Переключения между состояниями — плавнее (3с) для музыкальности.
+    // First start — short fade-in (250ms) to avoid click without noticeable delay.
+    // State transitions — smoother (3s) for musicality.
     const fadeMs = this.voice ? 3000 : 250;
     this._setStateSeq = (this._setStateSeq || 0) + 1;
     const seq = this._setStateSeq;
 
-    // Если буфер уже в кэше — сразу сэмпл, без синтеза-прогрева.
+    // If buffer already cached — go straight to sample, skip synth warmup.
     if (state.loop && this.bufferCache.has(state.loop)) {
       const buf = this.bufferCache.get(state.loop);
       const sample = new SampleVoice(this.ctx, this.outGain, buf, state.sample);
@@ -1040,7 +1040,7 @@ class AmbientEngine {
       return;
     }
 
-    // Иначе: 1) Синтез-прогрев моментально и 2) в фоне пытаемся подменить на сэмпл.
+    // Otherwise: 1) Synth warmup immediately and 2) swap to sample in background.
     const synthVoice = new AmbientVoice(this.ctx, this.outGain);
     synthVoice.start(state.synth);
     synthVoice.setLevel(0, 0);
@@ -1052,10 +1052,10 @@ class AmbientEngine {
 
     this._notifyLoading(true);
     this._loadBuffer(state.loop).then((buf) => {
-      // Если за это время состояние сменилось или voice уже другой — выходим.
+      // If state changed or voice was replaced in the meantime — bail out.
       if (seq !== this._setStateSeq) { this._notifyLoading(false); return; }
       if (this.voice !== synthVoice) { this._notifyLoading(false); return; }
-      // Fade synth → sample за 2с (короче чем первичный фейд, чтобы «подмена» была слышна)
+      // Fade synth → sample over 2s (shorter than primary fade so the swap is audible)
       const swapMs = 2000;
       const sample = new SampleVoice(this.ctx, this.outGain, buf, state.sample);
       sample.start();
@@ -1080,11 +1080,10 @@ class AmbientEngine {
   }
 
   /* ---- Lifecycle resilience -----------------------------------------------
-     Android Chrome (и иногда iOS Safari) при блокировке экрана,
-     переключении вкладок, входящем звонке или audio focus loss переводит
-     AudioContext в suspended state. Иногда простого ctx.resume() хватает,
-     но в редких случаях BufferSource "зависают" в нерабочем состоянии.
-     Этот метод вызывается из внешних lifecycle-listeners. */
+     Android Chrome (and sometimes iOS Safari) suspends AudioContext on screen lock,
+     tab switch, incoming call, or audio focus loss. Often ctx.resume() is enough,
+     but in rare cases BufferSources get stuck in a broken state.
+     This method is called from external lifecycle listeners. */
   async resumeAndHeal() {
     if (!this.ctx) return;
     try {
@@ -1094,18 +1093,18 @@ class AmbientEngine {
     } catch (e) {
       console.warn("resume failed:", e);
     }
-    // Если continuous-миксер был включён — пересобираем воисы если нужно.
+    // If continuous mixer was active — rebuild voices if needed.
     if (this.continuous && this.mixVoices) {
       await this._recreateMixVoicesIfBroken();
     } else if (this.voice && this.voice instanceof SampleVoice) {
-      // Одиночный режим — тоже проверяем.
+      // Single-voice mode — check as well.
       this._healSingleVoice();
     }
   }
 
   async _recreateMixVoicesIfBroken() {
-    // Пересоздаём BufferSource'ы — Web Audio specifies source can start() only once.
-    // После долгого suspend на Android Chrome старые source'ы могут "висеть".
+    // Recreate BufferSources — Web Audio specifies a source can start() only once.
+    // After a long suspend on Android Chrome old sources may get stuck.
     if (!this.mixVoices || !this.mixVoices.length) return;
     const needsHeal = this._lastSuspendedAt && (Date.now() - this._lastSuspendedAt > 1500);
     if (!needsHeal) return;
@@ -1122,15 +1121,15 @@ class AmbientEngine {
       const nv = new SampleVoice(this.ctx, this.outGain, buf, old.state.sample);
       try { nv.src.start(startTime); } catch(_) {}
       nv.alive = true;
-      // Стартуем с gain=0; applyMix ниже выставит правильные веса.
+      // Start at gain=0; applyMix below will set correct weights.
       nv.master.gain.setValueAtTime(0, this.ctx.currentTime);
       newVoices.push({ state: old.state, voice: nv, anchor: old.anchor });
     }
     if (!newVoices.length) { this._lastSuspendedAt = null; return; }
-    // Стопим старые без рампы
+    // Stop old voices without ramp
     oldVoices.forEach(o => { try { o.voice.stop(0); } catch(_){} });
     this.mixVoices = newVoices;
-    // Перерисуем микс по текущему pct (короткий ramp, чтобы не было щелчка)
+    // Re-apply mix at current pct (short ramp to avoid a click)
     if (lastPct != null) this.applyMix(lastPct, 200);
     this._lastSuspendedAt = null;
   }
@@ -1140,14 +1139,14 @@ class AmbientEngine {
     const needsHeal = this._lastSuspendedAt && (Date.now() - this._lastSuspendedAt > 1500);
     if (!needsHeal) return;
     console.log("[audio] healing single voice after long suspend");
-    // Для single-voice проще: вызываем setState снова.
+    // Single-voice is simpler: call setState again.
     if (this._lastSingleState) {
       this.setState(this._lastSingleState, 0);
     }
     this._lastSuspendedAt = null;
   }
 
-  /* Вызывается когда мы знаем что вкладка ушла в фон — фиксируем время. */
+  /* Called when we know the tab went to background — record the time. */
   notePotentialSuspend() {
     this._lastSuspendedAt = Date.now();
   }
@@ -1163,7 +1162,7 @@ class Visualizer {
   _tick() {
     if (!this.alive) return;
     this.bars.forEach((bar) => {
-      // больше амплитуды: 0.25–1.0 вместо 0.3–0.85
+      // wider amplitude: 0.25–1.0 instead of 0.3–0.85
       const h = 0.25 + Math.random() * 0.75;
       const dur = 550 + Math.random() * 320;
       bar.style.transition = `transform ${dur}ms cubic-bezier(0.32, 0.72, 0, 1)`;
@@ -1210,10 +1209,10 @@ dom.cta.href = CTA_URL;
 const audio = new AmbientEngine();
 
 /* ---- Audio lifecycle listeners (mobile resilience) ---------------------
-   Android Chrome и iOS Safari агрессивно suspend'ят AudioContext при
-   уходе вкладки в фон, блокировке экрана, входящих звонках. Слушаем
-   visibility/focus/pageshow и вызываем resumeAndHeal() который при
-   необходимости пересобирает BufferSource'ы. */
+   Android Chrome and iOS Safari aggressively suspend AudioContext on
+   tab background, screen lock, and incoming calls. We listen to
+   visibility/focus/pageshow and call resumeAndHeal() which
+   rebuilds BufferSources when necessary. */
 (function setupAudioLifecycle() {
   const onHide = () => { try { audio.notePotentialSuspend(); } catch(_){} };
   const onShow = () => { try { audio.resumeAndHeal(); } catch(_){} };
@@ -1227,26 +1226,26 @@ const audio = new AmbientEngine();
 })();
 
 /* ---- UI loading indicator ----------------------------------------------
-   Показываем во время fetch+decode сэмплов. Буфер still.ogg начинаем
-   подгружать сразу (eagerly), но без AudioContext (файл в кэше браузера).
+   Shown during sample fetch+decode. We start loading still.ogg
+   eagerly, but without an AudioContext (file lands in browser HTTP cache).
 -------------------------------------------------------------------------- */
 async function eagerPrefetch(url) {
-  // До создания AudioContext мы не можем декодировать, но файл
-  // ляжет в HTTP-кэш браузера — его повторный fetch в энджине будет мгновенным.
+  // Before AudioContext is created we cannot decode, but the file
+  // lands in browser HTTP cache — subsequent fetch inside the engine is instant.
   try { await fetch(url, { cache: "force-cache" }); } catch (_) {}
 }
 eagerPrefetch("audio/still-v3-mixkit.ogg");
 
 audio.onLoadingChange((loading) => {
   if (!dom.welcome.classList.contains("hidden")) {
-    // Оверлей видим — показываем спиннер на кнопке
+    // Overlay visible — show spinner on button
     dom.welcomePlay.classList.toggle("loading", loading);
     if (dom.welcomeFoot) {
       dom.welcomeFoot.textContent = loading ? "loading lo-fi loops…" : "tap to start · sound on";
       dom.welcomeFoot.classList.toggle("fade", loading);
     }
   } else {
-    // Оверлей уже закрыт — тихо показываем в status-line
+    // Overlay already closed — show quietly in status-line
     if (loading) dom.status.textContent = "loading texture";
     else if (dom.status.textContent === "loading texture") dom.status.textContent = "";
   }
@@ -1254,22 +1253,22 @@ audio.onLoadingChange((loading) => {
 const viz = new Visualizer(dom.viz);
 
 /* ---- Analytics ----------------------------------------------------------
-   Отправка GA4 events через gtag.js. Глобальный хелпер track() безопасен
-   даже если gtag заблокирован ad-blocker'ом — никаких ошибок, тихо но-оп.
+   Sends GA4 events via gtag.js. The global track() helper is safe
+   even if gtag is blocked by an ad-blocker — no errors, silent no-op.
 -------------------------------------------------------------------------- */
 function track(name, params) {
   try {
     if (typeof window.gtag === "function") {
       window.gtag("event", name, params || {});
     }
-  } catch (_) { /* тихо */ }
+  } catch (_) { /* silent */ }
 }
 
 /* ---- Engagement timer ---------------------------------------------------
-   Измеряет время активного прослушивания (включёно и не muted) и
-   выстреливает milestone-events: 30s, 2m, 5m, 15m, 30m. Каждый по одному
-   разу за сессию — это основные retention-метрики для продукта.
-   При переходе вкладки в background — ставим на паузу (Page Visibility API).
+   Measures active listening time (playing and not muted) and
+   fires milestone events: 30s, 2m, 5m, 15m, 30m. Each fires once
+   per session — these are the core retention metrics for the product.
+   Tab going to background pauses the timer (Page Visibility API).
 -------------------------------------------------------------------------- */
 const ENGAGEMENT_MILESTONES = [
   { ms: 30_000, label: "30s" },
@@ -1278,8 +1277,8 @@ const ENGAGEMENT_MILESTONES = [
   { ms: 900_000, label: "15m" },
   { ms: 1_800_000, label: "30m" },
 ];
-let engagementMs = 0;        // накопленное активное время
-let engagementTickStart = 0; // performance.now() последнего возобновления
+let engagementMs = 0;        // accumulated active time
+let engagementTickStart = 0; // performance.now() of last resume
 let engagementInterval = null;
 let engagementFired = new Set();
 
@@ -1314,12 +1313,12 @@ function resumeEngagementTimer() {
     engagementTickStart = performance.now();
   }
 }
-// Page Visibility — не копим время когда вкладка в бэкграунде
+// Page Visibility — stop accumulating time when tab is in background
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) pauseEngagementTimer();
   else resumeEngagementTimer();
 });
-// Перед уходом — финальный audio_session_end с суммарным временем
+// Before unload — final audio_session_end with total time
 window.addEventListener("pagehide", () => {
   pauseEngagementTimer();
   if (engagementMs > 0) {
@@ -1338,9 +1337,9 @@ function classifyState(pct) {
 }
 
 /* ---- Color interpolation ------------------------------------------------
-   Плавная интерполяция фона между соседними состояниями. Цвет «скользит» по
-   цене внутри диапазона, а не переключается ступенями. Старт и конец ряда
-   (FALLING < -1.5%, SURGE > 1.5%) фиксируются.
+   Smooth interpolation of background between adjacent states. Color "slides"
+   along price within a range instead of switching in discrete steps.
+   Start and end of the range (FALLING < -1.5%, SURGE > 1.5%) are clamped.
 -------------------------------------------------------------------------- */
 function hexToRgb(h) {
   const m = h.replace("#", "");
@@ -1355,7 +1354,7 @@ function lerpColor(a, b, t) {
   return rgbToHex(A[0] + (B[0]-A[0])*t, A[1] + (B[1]-A[1])*t, A[2] + (B[2]-A[2])*t);
 }
 
-// Опорные точки для интерполяции: центры диапазонов каждого состояния
+// Anchor points for interpolation: centers of each state range
 function stateAnchorPct(s) {
   if (s.min === -Infinity) return -2.5; // FALLING anchor
   if (s.max === Infinity)  return  2.5; // SURGE anchor
@@ -1364,7 +1363,7 @@ function stateAnchorPct(s) {
 
 function interpolatedColors(pct) {
   const anchors = STATES.map(s => ({ pct: stateAnchorPct(s), bg: s.bg, accent: s.accent, sleeve: s.sleeve }));
-  // Находим двух соседей
+  // Find the two neighbors
   if (pct <= anchors[0].pct) return { bg: anchors[0].bg, accent: anchors[0].accent, sleeve: anchors[0].sleeve };
   if (pct >= anchors[anchors.length-1].pct) {
     const a = anchors[anchors.length-1];
@@ -1394,7 +1393,7 @@ function applyContinuousColor(pct) {
 }
 
 /* ---- Dial: position needle and highlight active/adjacent labels --------
-   pct -2.5..+2.5 → needle.left 0..100%. Anchor для лейблов:
+   pct -2.5..+2.5 → needle.left 0..100%. Anchors for labels:
    FALLING=-2.5, COOLING=-0.9, STILL=0, RISING=0.9, SURGE=2.5.
 -------------------------------------------------------------------------- */
 function applyDial(pct) {
@@ -1414,11 +1413,11 @@ function applyDial(pct) {
   });
 }
 
-// Initial dial state — needle на STILL до первого fetch'а
+// Initial dial state — needle at STILL until first fetch
 applyDial(0);
 
 function applyVisualState(state) {
-  // swap state name with cross-fade (текст меняется дискретно при переходе границы)
+  // swap state name with cross-fade (text changes discretely at boundary crossing)
   dom.stateName.classList.add("swap");
   dom.trackName.classList.add("swap");
   setTimeout(() => {
@@ -1437,7 +1436,7 @@ async function setMarketState(state, force = false) {
   lastState = state;
   applyVisualState(state);
   if (started) await audio.setState(state);
-  // Трекаем смену market-состояния только если это реальный переход (prev был)
+  // Track market state change only if this is a real transition (prev existed)
   if (prevId && prevId !== state.id && typeof track === "function") {
     track("audio_state", {
       state_id: state.id,
@@ -1454,7 +1453,7 @@ function updateTicker(price, pct) {
   dom.delta.textContent = sign + pct.toFixed(2) + "%  · 1h";
   dom.delta.className = pct >= 0 ? "delta-up" : "delta-down";
 
-  // Welcome-screen live ticker — тот же сигнал, но мельче и без символа ₿
+  // Welcome-screen live ticker — same signal, smaller, without ₿ symbol
   const wState = document.getElementById("welcome-live-state");
   const wPrice = document.getElementById("welcome-live-price");
   const wDelta = document.getElementById("welcome-live-delta");
@@ -1479,8 +1478,8 @@ function setStatus(text) {
 
 /* ---- Price polling ------------------------------------------------------ */
 async function fetchBtc() {
-  // Binance Vision — публичное market-data зеркало без геоблоков, CORS открыт (* для origin).
-  // Берём последнюю 1h-свечу, считаем % = (close - open) / open.
+  // Binance Vision — public market-data mirror without geo-blocks, CORS open (* for origin).
+  // Take the latest 1h candle, compute % = (close - open) / open.
   const url = "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=2";
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("binance " + res.status);
@@ -1499,10 +1498,10 @@ async function tick() {
     setStatus("");
     updateTicker(price, pct);
     lastPct = pct;
-    // Непрерывный цвет скользит по цене каждый tick — даже внутри одного состояния
+    // Continuous color slides along price each tick — even within a single state
     applyContinuousColor(pct);
-    // Аудио: continuous cross-mix по тем же anchor'ам, что и цвета.
-    // Рамп 8с чуть короче опроса (15с), чтобы движение было слышным, но не резким.
+    // Audio: continuous cross-mix on same anchors as colors.
+    // 8s ramp slightly shorter than poll interval (15s) so movement is audible but not abrupt.
     if (started) audio.applyMix(pct, 8000);
     const state = classifyState(pct);
     await setMarketState(state);
@@ -1514,23 +1513,23 @@ async function tick() {
 }
 
 /* ---- First-gesture gate (autoplay) -------------------------------------
-   Стратегия:
-   1. На первом визите ждём любой жест (mousemove/scroll/touch/key/click).
-      Порог почти невидим — пользователь просто двигает мышь.
-   2. После первого успеха пишем флаг в localStorage.
-   3. На повторных визитах пытаемся resume() сразу — Chrome разрешит без
-      жеста через Media Engagement Index, если слушали ≥7с в прошлый раз.
-      Если отказ — тихо падаем на fallback (любой жест).
+   Strategy:
+   1. On first visit wait for any gesture (mousemove/scroll/touch/key/click).
+      The threshold is nearly invisible — user just moves the mouse.
+   2. After first success write a flag to localStorage.
+   3. On returning visits try resume() immediately — Chrome will allow it
+      without a gesture via Media Engagement Index if listened ≥7s last time.
+      If denied — silently fall back to gesture.
 -------------------------------------------------------------------------- */
 const RETURN_KEY = "hodlfm.audioOk";
-// Только "интенциональные" жесты — mousemove/scroll/wheel Chrome не считает достаточными
-// для autoplay-разрешения, поэтому они рождают console-warning при вызове ensureCtx.
-// Используем события «завершения жеста» (pointerup/click/touchend) — именно после них
-// Chrome/Safari выдают user activation достаточный для autoplay. pointerdown/touchstart
-// раньше user activation на Android в некоторых версиях — поэтому AudioContext остаётся suspended.
+// Only "intentional" gestures — mousemove/scroll/wheel are not considered sufficient by Chrome
+// for autoplay permission, so they produce a console-warning when ensureCtx is called.
+// We use gesture-completion events (pointerup/click/touchend) — only after these does
+// Chrome/Safari grant user activation sufficient for autoplay. pointerdown/touchstart
+// precede user activation on Android in some versions — so AudioContext stays suspended.
 const gestureEvents = ["pointerup", "click", "keydown", "touchend"];
 
-// Простой экранный дебаг-логгер — включается через ?debug=1
+// Simple on-screen debug logger — enabled via ?debug=1
 const DEBUG_AUDIO = new URLSearchParams(location.search).get("debug") === "1";
 let _dbgEl = null;
 function dbg(msg) {
@@ -1556,22 +1555,22 @@ async function begin() {
   dom.tapHint.classList.add("hidden");
   dom.welcome.classList.add("hidden");
   dom.onAir.classList.add("live");
-  // отписываемся от всех gesture-листенеров, чтобы без утечек
+  // unsubscribe from all gesture listeners to avoid leaks
   gestureEvents.forEach(ev => document.removeEventListener(ev, gestureHandler, true));
   try {
     await audio.ensureCtx();
     dbg("ensureCtx OK. ctx.state=" + (audio.ctx ? audio.ctx.state : "null"));
-    // Первый звук — это стартовый setState от текущего состояния (моментальный отклик),
-    // потом в фоне включаем continuous mix (плавный переход на все 5 голосов).
+    // First sound — initial setState for current state (instant response),
+    // then enable continuous mix in background (smooth transition to all 5 voices).
     dbg("setState(" + (lastState ? lastState.id : "null") + ")");
     if (lastState) await audio.setState(lastState);
     dbg("setState done");
-    // Неблокирующее включение continuous mix.
+    // Non-blocking enablement of continuous mix.
     audio.enableContinuous(STATES).then(() => {
       dbg("enableContinuous done. voices=" + (audio.mixVoices ? audio.mixVoices.length : 0));
       if (lastPct != null) audio.applyMix(lastPct, 3000);
     }).catch(e => dbg("enableContinuous FAILED: " + (e?.stack || e)));
-    // Определяем returning ДО записи флага, иначе всегда будет true
+    // Determine returning BEFORE writing the flag, otherwise it is always true
     let returning = false;
     try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
     track("audio_started", {
@@ -1580,7 +1579,7 @@ async function begin() {
       pct: lastPct == null ? null : Number(lastPct.toFixed(2)),
     });
     startEngagementTimer();
-    // помечаем что хотя бы раз запускался успешно — следующий визит попробует без жеста
+    // mark that audio started successfully at least once — next visit will try without a gesture
     try { localStorage.setItem(RETURN_KEY, "1"); } catch (_) {}
   } catch (e) {
     dbg("BEGIN ERROR: " + (e?.stack || e));
@@ -1597,30 +1596,30 @@ function gestureHandler(e) {
   if (!started) begin();
 }
 
-// Широкий набор жестов — любое взаимодействие стартует звук.
-// passive: true — не блокируем скролл/жесты. capture: true — ловим раньше всех.
+// Broad gesture set — any interaction starts audio.
+// passive: true — do not block scroll/gestures. capture: true — catch before anyone else.
 gestureEvents.forEach(ev => {
   document.addEventListener(ev, gestureHandler, { passive: true, capture: true });
 });
 
-// Отдельный явный хэндлер на play-кнопку — для iOS Safari и a11y
+// Explicit handler on the play button — for iOS Safari and a11y
 dom.welcomePlay.addEventListener("click", (e) => {
   e.stopPropagation();
   begin();
 });
 
-// Попытка немедленного старта для вернувшихся (Media Engagement Index).
-// Если браузер разрешит — audio заиграет без жеста. Если нет — останемся в suspended,
-// ловим варнинг в console (это ожидаемо), первый же жест из gestureHandler его разбудит.
+// Try immediate start for returning visitors (Media Engagement Index).
+// If the browser allows it — audio plays without a gesture. If not — we stay suspended,
+// catch the console warning (expected), first gesture from gestureHandler will wake it.
 async function tryAutoStart() {
   let returning = false;
   try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
   if (!returning) return;
-  // Вернувшемуся пользователю оверлей не нужен — скрываем сразу
+  // Returning user does not need the overlay — hide immediately
   dom.welcome.classList.add("hidden");
   if (started) return;
-  // НЕ создаём AudioContext до первого жеста — иначе браузер пишет autoplay-warning в console.
-  // Первый же клик/тап/скролл запустит audio через gestureHandler.
+  // Do NOT create AudioContext before first gesture — browser logs autoplay-warning otherwise.
+  // First click/tap/scroll will start audio via gestureHandler.
   dom.tapHint.classList.remove("hidden");
 }
 
@@ -1632,7 +1631,7 @@ dom.mute.addEventListener("click", (e) => {
   dom.mute.textContent = m ? "○" : "◉";
   dom.viz.classList.toggle("muted", m);
   track("mute_toggle", { muted: m, state_id: lastState ? lastState.id : null });
-  // При mute ставим на паузу engagement-таймер, при unmute — продолжаем
+  // On mute pause the engagement timer, on unmute resume it
   if (m) pauseEngagementTimer(); else resumeEngagementTimer();
 });
 
@@ -1642,14 +1641,14 @@ dom.cta.addEventListener("click", (e) => {
 });
 
 /* ---- Boot --------------------------------------------------------------- */
-// Показываем дефолтное STILL сразу, чтобы sleeve не был пустым до первого fetch'а.
+// Show default STILL immediately so sleeve is not empty before first fetch.
 const stillState = STATES.find(s => s.id === "still");
 dom.stateName.textContent = stillState.label;
 dom.trackName.textContent = stillState.track;
 document.documentElement.style.setProperty("--bg", stillState.bg);
 document.documentElement.style.setProperty("--accent", stillState.accent);
 lastState = stillState;
-// На первом визите показываем весь overlay; на повторных — маленький tap-hint
+// On first visit show full overlay; on returning visits show small tap-hint
 {
   let returning = false;
   try { returning = localStorage.getItem(RETURN_KEY) === "1"; } catch (_) {}
@@ -1657,10 +1656,10 @@ lastState = stillState;
     dom.welcome.classList.add("hidden");
     dom.tapHint.classList.remove("hidden");
   }
-  // иначе welcome уже виден по дефолту, tapHint остаётся hidden
+  // otherwise welcome is visible by default, tapHint stays hidden
 }
-// Защита от чужих Service Worker'ов и старых CacheStorage-кешей,
-// которые могли подменять аудио-файлы устаревшими версиями.
+// Guard against foreign Service Workers and stale CacheStorage caches
+// that may have served outdated audio files.
 (async () => {
   try {
     if ("serviceWorker" in navigator) {
@@ -1671,26 +1670,26 @@ lastState = stillState;
       const keys = await caches.keys();
       await Promise.all(keys.map(k => caches.delete(k)));
     }
-  } catch (_) { /* тихо */ }
+  } catch (_) { /* silent */ }
 })();
 
 tick();
-// 15с — частый опрос для «живого» фона. Binance Vision: лимиты публичные, ~6000 weight/min.
+// 15s — frequent poll for a "live" background feel. Binance Vision: public limits, ~6000 weight/min.
 setInterval(tick, 15_000);
 tryAutoStart();
 
 /* ---- Share buttons -------------------------------------------------------
-   Один источник правды — SHARE_URL/SHARE_TEXT, переиспользуется всеми бэкс-линками.
-   Нажатие на share-иконку НЕ должно вызывать gestureHandler/mute toggle — stopPropagation.
+   Single source of truth — SHARE_URL/SHARE_TEXT, reused by all share links.
+   Clicking a share icon must NOT trigger gestureHandler/mute toggle — stopPropagation.
 -------------------------------------------------------------------------- */
 (function setupShare() {
-  // На каждый канал — свой UTM, чтобы в GA4 атрибуция шла отдельно от cta_click
+  // Each channel gets its own UTM so GA4 attribution is separate from cta_click
   const SHARE_BASE = "https://hodl-fm.siberia.fund/";
   const shareUrl = (channel) =>
     `${SHARE_BASE}?utm_source=${channel}&utm_medium=share&utm_campaign=ambient_radio`;
   const SHARE_TEXT = "HODL FM — ambient music that follows bitcoin. Five textures for five market moods.";
   const t = encodeURIComponent(SHARE_TEXT);
-  const SHARE_URL = SHARE_BASE; // copy-link остаётся чистым, без UTM
+  const SHARE_URL = SHARE_BASE; // copy-link stays clean, no UTM
 
   const links = {
     "share-twitter":  `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl("twitter"))}&text=${t}`,
@@ -1734,7 +1733,7 @@ tryAutoStart();
           copyBtn.classList.remove("copied");
           if (tip) tip.classList.remove("show");
         }, 1600);
-      } catch (_) { /* тихо */ }
+      } catch (_) { /* silent */ }
     }, true);
   }
 })();
