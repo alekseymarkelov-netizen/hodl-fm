@@ -39,11 +39,12 @@
 
 <script>
 const URLS = [
-  ["falling", "audio/falling-v3-mixkit.ogg"],
-  ["cooling", "audio/cooling-v3-mixkit.ogg"],
-  ["still",   "audio/still-v3-mixkit.ogg"],
-  ["rising",  "audio/rising-v3-mixkit.ogg"],
-  ["surge",   "audio/surge-v3-mixkit.ogg"],
+  // Try both OGG and M4A — main site picks one automatically via pickAudioUrl().
+  ["falling", "audio/falling-v3-mixkit.ogg", "audio/falling-v3-mixkit.m4a"],
+  ["cooling", "audio/cooling-v3-mixkit.ogg", "audio/cooling-v3-mixkit.m4a"],
+  ["still",   "audio/still-v3-mixkit.ogg",   "audio/still-v3-mixkit.m4a"],
+  ["rising",  "audio/rising-v3-mixkit.ogg",  "audio/rising-v3-mixkit.m4a"],
+  ["surge",   "audio/surge-v3-mixkit.ogg",   "audio/surge-v3-mixkit.m4a"],
 ];
 
 const $log = document.getElementById("log");
@@ -183,9 +184,14 @@ async function runAll() {
     L("oscillator FAILED: " + (e.message || e), "err");
   }
   HR();
-  L("--- TEST 3: fetch + decode all 5 OGGs ---", "info");
-  for (const [name, url] of URLS) {
-    decoded[name] = await fetchAndDecode(url);
+  L("--- TEST 3: fetch + decode all 5 loops (OGG with M4A fallback) ---", "info");
+  for (const [name, oggUrl, m4aUrl] of URLS) {
+    let buf = await fetchAndDecode(oggUrl);
+    if (!buf && m4aUrl) {
+      L("  OGG failed, trying M4A fallback...", "warn");
+      buf = await fetchAndDecode(m4aUrl);
+    }
+    decoded[name] = buf;
   }
   HR();
   L("--- TEST 4: play STILL for 5s (OGG path) ---", "info");
@@ -201,7 +207,10 @@ async function runAll() {
 document.getElementById("run").addEventListener("click", () => runAll());
 document.getElementById("play").addEventListener("click", async () => {
   await makeCtx();
-  if (!decoded.still) decoded.still = await fetchAndDecode(URLS[2][1]);
+  if (!decoded.still) {
+    decoded.still = await fetchAndDecode(URLS[2][1]);
+    if (!decoded.still) decoded.still = await fetchAndDecode(URLS[2][2]);
+  }
   if (decoded.still) await playBuffer(decoded.still, 5);
 });
 document.getElementById("stop").addEventListener("click", stopActive);

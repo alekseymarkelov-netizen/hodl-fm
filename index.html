@@ -74,6 +74,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
 <!-- Prefetch only the default loop eagerly — the other 4 load lazily on demand -->
 <link rel="prefetch" href="audio/still-v3-mixkit.ogg" as="audio" type="audio/ogg" />
+<link rel="prefetch" href="audio/still-v3-mixkit.m4a" as="audio" type="audio/mp4" />
 <style>
   :root {
     /* anchor neutral — warm linen, never pure white */
@@ -940,7 +941,7 @@ class AmbientEngine {
     // Load all 5 buffers in parallel (shared cache, no duplicate fetches).
     let buffers;
     try {
-      buffers = await Promise.all(states.map(s => this._loadBuffer(s.loop)));
+      buffers = await Promise.all(states.map(s => this._loadBuffer(pickAudioUrl(s.loop))));
     } catch (e) {
       console.warn("continuous mix: buffer load failed, staying on discrete setState", e);
       return;
@@ -1028,8 +1029,9 @@ class AmbientEngine {
     const seq = this._setStateSeq;
 
     // If buffer already cached — go straight to sample, skip synth warmup.
-    if (state.loop && this.bufferCache.has(state.loop)) {
-      const buf = this.bufferCache.get(state.loop);
+    const loopUrl = state.loop ? pickAudioUrl(state.loop) : null;
+    if (loopUrl && this.bufferCache.has(loopUrl)) {
+      const buf = this.bufferCache.get(loopUrl);
       const sample = new SampleVoice(this.ctx, this.outGain, buf, state.sample);
       sample.start();
       sample.setLevel(0, 0);
@@ -1048,10 +1050,10 @@ class AmbientEngine {
     if (this.voice) this.voice.stop(fadeMs);
     this.voice = synthVoice;
 
-    if (!state.loop) { this._notifyLoading(false); return; }
+    if (!loopUrl) { this._notifyLoading(false); return; }
 
     this._notifyLoading(true);
-    this._loadBuffer(state.loop).then((buf) => {
+    this._loadBuffer(loopUrl).then((buf) => {
       // If state changed or voice was replaced in the meantime — bail out.
       if (seq !== this._setStateSeq) { this._notifyLoading(false); return; }
       if (this.voice !== synthVoice) { this._notifyLoading(false); return; }
@@ -1116,7 +1118,7 @@ class AmbientEngine {
     for (let i = 0; i < oldVoices.length; i++) {
       const old = oldVoices[i];
       if (!old || !old.state) continue;
-      const buf = this.bufferCache.get(old.state.loop);
+      const buf = this.bufferCache.get(pickAudioUrl(old.state.loop));
       if (!buf) continue;
       const nv = new SampleVoice(this.ctx, this.outGain, buf, old.state.sample);
       try { nv.src.start(startTime); } catch(_) {}
@@ -1184,7 +1186,7 @@ class IOSAudioEngine {
     if (this.elements) return;
     this.elements = states.map((state) => {
       const el = document.createElement("audio");
-      el.src = state.loop;
+      el.src = pickAudioUrl(state.loop);
       el.loop = true;
       el.preload = "auto";
       el.crossOrigin = "anonymous";
@@ -1369,6 +1371,32 @@ class IOSAudioEngine {
   get mixVoices() { return this.elements; }
 }
 
+/* ---- Audio format detection: pick OGG or AAC based on browser support ----
+   iOS < 17.4 and some older iPhones/iPads don't decode OGG even on Safari 18.
+   AAC/M4A is universally supported. We detect once at startup and swap URLs.
+-------------------------------------------------------------------------- */
+let AUDIO_FORMAT = "ogg";  // default, overridden by detectAudioFormat()
+function detectAudioFormat() {
+  try {
+    const probe = document.createElement("audio");
+    const oggOk = probe.canPlayType("audio/ogg; codecs=vorbis");
+    const m4aOk = probe.canPlayType("audio/mp4; codecs=\"mp4a.40.2\"");
+    // canPlayType returns "probably", "maybe", or "" (empty = no support).
+    // We trust "probably"; if OGG is empty/maybe AND M4A is at least maybe, switch to AAC.
+    if (oggOk === "probably") { AUDIO_FORMAT = "ogg"; return; }
+    if (m4aOk && m4aOk !== "") { AUDIO_FORMAT = "m4a"; return; }
+    // Last resort: keep OGG, decode will fail loudly and we'll see it in logs.
+    AUDIO_FORMAT = "ogg";
+  } catch (_) { AUDIO_FORMAT = "ogg"; }
+}
+detectAudioFormat();
+// pickAudioUrl("audio/still-v3-mixkit.ogg") -> same URL on browsers that decode OGG,
+//                                              or .m4a variant on iOS without OGG support.
+function pickAudioUrl(url) {
+  if (AUDIO_FORMAT === "ogg") return url;
+  return url.replace(/\.ogg(\?.*)?$/, ".m4a$1");
+}
+
 /* ---- Platform detection: iOS Safari needs the HTML5 audio path ---------- */
 function isIOSDevice() {
   if (typeof navigator === "undefined") return false;
@@ -1466,7 +1494,7 @@ async function eagerPrefetch(url) {
   // lands in browser HTTP cache — subsequent fetch inside the engine is instant.
   try { await fetch(url, { cache: "force-cache" }); } catch (_) {}
 }
-eagerPrefetch("audio/still-v3-mixkit.ogg");
+eagerPrefetch(pickAudioUrl("audio/still-v3-mixkit.ogg"));
 
 audio.onLoadingChange((loading) => {
   if (!dom.welcome.classList.contains("hidden")) {
